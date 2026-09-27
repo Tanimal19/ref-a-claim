@@ -1,50 +1,26 @@
 # ref-a-claim
 
-Enter a claim, pick a folder of `.pdf`, `.md` / `.markdown` and `.txt` files, and read each paper as it
+Enter a claim, pick a folder of `.pdf`, `.md` or `.txt` files, and read each paper as it
 is, with the paragraphs that support or refute the claim tinted in place. Each paragraph is classified by TypeSafe's
 [Jev](https://docs.typesafe.ai/introduction) model.
 
-[![ref-a-claim checking a claim against a folder of papers](docs/demo.gif)](docs/demo.mp4)
+![ref-a-claim checking a claim against a folder of papers](docs/demo.gif)
 
-<sub>The papers in the video are fictional examples. [Watch it as MP4 →](docs/demo.mp4)</sub>
+<sub>The papers in the video are fictional examples.</sub>
 
-Everything runs in the browser; each user brings their own TypeSafe API key.
-
-## Setup
-
-```sh
-pnpm install
-```
+Everything runs in the browser; nothing is sent to a server.
+See demo at [https://ref-a-claim.vercel.app/](https://ref-a-claim.vercel.app/).
 
 ## Settings
 
-The gear button opens Settings: the TypeSafe API key, the model, the maximum paragraph length,
-and how much surrounding context is sent with each paragraph. The key is kept in the tab's
-`sessionStorage`, so it is cleared when the tab closes; the other settings are kept in
-`localStorage`.
+The gear button opens Settings: the TypeSafe API key, the model, the maximum paragraph length, and how much surrounding context is sent with each paragraph. The key is kept in the tab's `sessionStorage`, so it is cleared when the tab closes; the other settings are kept in `localStorage`.
 
-## Run
+## Run Locally
 
 ```sh
-pnpm dev               # http://localhost:5173
+pnpm install
+pnpm dev
 ```
-
-Or build and serve the production bundle locally:
-
-```sh
-pnpm build && pnpm preview
-```
-
-## Deploy
-
-The site is static apart from one path: TypeSafe's API only allows CORS from its own console, so the
-browser calls it through `/typesafe/*` on the site's own origin, which is relayed to
-`https://api.typesafe.ai/*`. `vite.config.ts` does this for `pnpm dev` / `pnpm preview`, and
-`vercel.json` does it on Vercel with an external rewrite (response caching off). To deploy, import
-the repo into Vercel with the Root Directory left at the repo root; `vercel.json` sets the build.
-
-A host without rewrites (such as GitHub Pages) would need a separate relay, or TypeSafe to allow
-the site's origin.
 
 ## How it works
 
@@ -68,8 +44,7 @@ the site's origin.
    plain text as written. Each paragraph's characters are wrapped in spans and tinted by stance;
    unrelated paragraphs stay untinted. Hovering over a tinted paragraph shows its scores.
 
-Nothing is stored anywhere; reloading the page clears everything. To keep a finished (or
-cancelled / failed) analysis, click **Export results** to download it as JSON, and later
+To keep a finished (or cancelled / failed) analysis, click **Export results** to download it as JSON, and later
 **Open results…** to load that file back into the UI — claim, documents, and results are restored
 without re-reading or re-running anything. The file embeds the original files (base64), so it is
 about a third larger than the papers themselves.
