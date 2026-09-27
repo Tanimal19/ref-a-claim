@@ -1,0 +1,292 @@
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { analyze } from "./analyze.ts";
+import { AppHeader } from "./components/AppHeader.tsx";
+import { DocumentPicker } from "./components/DocumentPicker.tsx";
+import { ResultsView } from "./components/ResultsView.tsx";
+import { SettingsDialog } from "./components/SettingsDialog.tsx";
+import { EMPTY_USAGE, UsagePanel, addUsage } from "./components/UsagePanel.tsx";
+import { parseDocuments } from "./parse/index.ts";
+import type { Outcome } from "./results.ts";
+import { createRunFile, downloadRunFile, readRunFile } from "./runFile.ts";
+import { loadSettings, saveSettings } from "./settings.ts";
+import type { ParseFailure, ParsedDocument, Settings, TokenUsage } from "./types.ts";
+
+interface Run {
+  claim: string;
+  total: number;
+  status: "running" | "done" | "cancelled" | "failed";
+  error?: string;
+}
+
+export function App() {
+  const [claim, setClaim] = useState("");
+  const [documents, setDocuments] = useState<ParsedDocument[]>([]);
+  // The source files by document path: shown in the results, embedded in exported results, and read again when the
+  // paragraph length changes.
+  const [sourceFiles, setSourceFiles] = useState<ReadonlyMap<string, File>>(new Map());
+  const [parseFailures, setParseFailures] = useState<ParseFailure[]>([]);
+  const [readError, setReadError] = useState<string>();
+  const [reading, setReading] = useState(false);
+  const [run, setRun] = useState<Run>();
+  const [outcomes, setOutcomes] = useState<ReadonlyMap<string, Outcome>>(new Map());
+  const [shownDocumentId, setShownDocumentId] = useState<string>();
+  const [view, setView] = useState<"setup" | "results">("setup");
+  const [sessionUsage, setSessionUsage] = useState<TokenUsage>(EMPTY_USAGE);
+  const [resultsFileError, setResultsFileError] = useState<string>();
+  const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const abortRef = useRef<AbortController>(null);
+  const resultsInputRef = useRef<HTMLInputElement>(null);
+
+  const running = run?.status === "running";
+  const shownView = run ? view : "setup";
+  const passageCount = documents.reduce((sum, doc) => sum + doc.passages.length, 0);
+  const runUsage = useMemo(() => {
+    let total = EMPTY_USAGE;
+    for (const outcome of outcomes.values()) {
+      if (outcome.kind === "result") total = addUsage(total, outcome.result.usage);
+    }
+    return total;
+  }, [outcomes]);
+
+  function resetResults() {
+    setRun(undefined);
+    setOutcomes(new Map());
+    setShownDocumentId(undefined);
+    setResultsFileError(undefined);
+  }
+
+  async function addFiles(files: File[], passageMaxChars = settings.passageMaxChars) {
+    setReading(true);
+    setReadError(undefined);
+    try {
+      const parsed = await parseDocuments(files, passageMaxChars);
+      const replaced = new Set(parsed.documents.map((doc) => doc.path));
+      const byPath = new Map(files.map((file) => [file.webkitRelativePath || file.name, file]));
+      setDocuments((prev) => [...prev.filter((doc) => !replaced.has(doc.path)), ...parsed.documents]);
+      setSourceFiles((prev) => {
+        const next = new Map(prev);
+        for (const doc of parsed.documents) {
+          const file = byPath.get(doc.path);
+          if (file) next.set(doc.path, file);
+        }
+        return next;
+      });
+      setParseFailures(parsed.failures);
+      resetResults();
+    } catch (error) {
+      setReadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setReading(false);
+    }
+  }
+
+  function removeDocument(id: string) {
+    const removed = documents.find((doc) => doc.id === id);
+    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+    if (removed) {
+      setSourceFiles((prev) => {
+        const next = new Map(prev);
+        next.delete(removed.path);
+        return next;
+      });
+    }
+    resetResults();
+  }
+
+  function clearDocuments() {
+    setDocuments([]);
+    setSourceFiles(new Map());
+    setParseFailures([]);
+    resetResults();
+  }
+
+  async function startAnalysis() {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setOutcomes(new Map());
+    setShownDocumentId(undefined);
+    setResultsFileError(undefined);
+    setRun({ claim: claim.trim(), total: passageCount, status: "running" });
+    setView("results");
+
+    const record = (passageId: string, outcome: Outcome) =>
+      setOutcomes((prev) => new Map(prev).set(passageId, outcome));
+
+    try {
+      await analyze(claim, documents, settings, controller.signal, {
+        onResult: (result) => {
+          record(result.passageId, { kind: "result", result });
+          setSessionUsage((prev) => addUsage(prev, result.usage));
+        },
+        onFailure: ({ passageId, message }) => record(passageId, { kind: "failure", message }),
+      });
+      setRun((prev) => prev && { ...prev, status: "done" });
+    } catch (error) {
+      setRun((prev) =>
+        prev &&
+        (controller.signal.aborted
+          ? { ...prev, status: "cancelled" }
+          : { ...prev, status: "failed", error: error instanceof Error ? error.message : String(error) }),
+      );
+    }
+  }
+
+  async function exportResults() {
+    if (!run || run.status === "running") return;
+    try {
+      const runFile = await createRunFile({
+        claim: run.claim,
+        status: run.status,
+        error: run.error,
+        documents,
+        files: sourceFiles,
+        outcomes,
+      });
+      downloadRunFile(runFile);
+      setResultsFileError(undefined);
+    } catch (error) {
+      setResultsFileError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function openResults(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const runFile = await readRunFile(file);
+      setClaim(runFile.claim);
+      setDocuments(runFile.documents);
+      setSourceFiles(runFile.files);
+      setParseFailures([]);
+      setReadError(undefined);
+      setOutcomes(new Map(Object.entries(runFile.outcomes)));
+      setShownDocumentId(undefined);
+      setRun({
+        claim: runFile.claim,
+        total: runFile.documents.reduce((sum, doc) => sum + doc.passages.length, 0),
+        status: runFile.status,
+        error: runFile.error,
+      });
+      setView("results");
+      setResultsFileError(undefined);
+    } catch (error) {
+      setResultsFileError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  function settingsSaved(next: Settings) {
+    const passageMaxCharsChanged = next.passageMaxChars !== settings.passageMaxChars;
+    saveSettings(next);
+    setSettings(next);
+    setSettingsOpen(false);
+    const files = documents.flatMap((doc) => sourceFiles.get(doc.path) ?? []);
+    // Re-reading replaces the passages a running analysis is still reporting on, so it waits until the run ends.
+    if (passageMaxCharsChanged && files.length > 0 && !running) void addFiles(files, next.passageMaxChars);
+  }
+
+  const errors = [resultsFileError, shownView === "results" ? run?.error : undefined].filter(Boolean);
+
+  return (
+    <div className="app-shell">
+      <AppHeader
+        view={shownView}
+        run={
+          run && {
+            claim: run.claim,
+            status: run.status,
+            total: run.total,
+            finished: outcomes.size,
+          }
+        }
+        onEdit={() => setView("setup")}
+        onBackToResults={() => setView("results")}
+        onCancel={() => abortRef.current?.abort()}
+        onOpenResults={() => resultsInputRef.current?.click()}
+        onExportResults={run && !running ? () => void exportResults() : undefined}
+        onOpenSettings={() => setSettingsOpen(true)}
+        usage={<UsagePanel run={run && runUsage} session={sessionUsage} />}
+      />
+      <input ref={resultsInputRef} type="file" accept=".json,application/json" hidden onChange={openResults} />
+
+      {errors.map((error) => (
+        <p key={error} className="banner error" role="alert">
+          {error}
+        </p>
+      ))}
+
+      {shownView === "results" ? (
+        <ResultsView
+          documents={documents}
+          outcomes={outcomes}
+          files={sourceFiles}
+          documentId={shownDocumentId}
+          onDocumentChange={setShownDocumentId}
+        />
+      ) : (
+        <div className="setup-scroll">
+          <main className="setup">
+            <div className="setup-intro">
+              <h1>Check a claim against your papers</h1>
+              <p className="muted">See which paragraphs support, refute, or are unrelated to it.</p>
+            </div>
+
+            {settings.apiKey === undefined && (
+              <p className="notice">
+                Add a TypeSafe API key before analyzing.{" "}
+                <button type="button" className="link" onClick={() => setSettingsOpen(true)}>
+                  Open settings
+                </button>
+              </p>
+            )}
+
+            <section className="panel">
+              <label htmlFor="claim" className="panel-title">
+                Claim
+              </label>
+              <textarea
+                id="claim"
+                rows={3}
+                placeholder="e.g. Remote work increases employee productivity."
+                value={claim}
+                onChange={(e) => setClaim(e.target.value)}
+              />
+            </section>
+
+            <DocumentPicker
+              documents={documents}
+              failures={parseFailures}
+              reading={reading}
+              readError={readError}
+              disabled={running}
+              onFiles={addFiles}
+              onRemove={removeDocument}
+              onClear={clearDocuments}
+            />
+
+            <div className="setup-actions">
+              <button
+                type="button"
+                className="primary"
+                disabled={running || claim.trim() === "" || passageCount === 0 || reading}
+                onClick={startAnalysis}
+              >
+                Analyze {passageCount} paragraph{passageCount === 1 ? "" : "s"}
+              </button>
+            </div>
+          </main>
+        </div>
+      )}
+
+      <SettingsDialog
+        open={settingsOpen}
+        settings={settings}
+        documentCount={documents.length}
+        resplittableCount={running ? 0 : documents.filter((doc) => sourceFiles.has(doc.path)).length}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={settingsSaved}
+      />
+    </div>
+  );
+}
