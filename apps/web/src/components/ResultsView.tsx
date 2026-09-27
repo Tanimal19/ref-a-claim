@@ -1,10 +1,8 @@
-import { Suspense, lazy, useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import type { ParsedDocument, Passage } from "../types.ts";
 import { outcomeCategory, paperStats, sumTallies, type Category, type Outcome, type PaperStats } from "../results.ts";
+import { DocumentView } from "./DocumentView.tsx";
 import { PaperNav, type PaperOrder } from "./PaperNav.tsx";
-
-// pdf.js is most of the bundle, so the document view loads it only once results are shown.
-const DocumentView = lazy(() => import("./DocumentView.tsx").then((module) => ({ default: module.DocumentView })));
 
 interface Props {
   documents: ParsedDocument[];
@@ -113,15 +111,13 @@ export function ResultsView({ documents, outcomes, files, documentId, onDocument
               Next paper →
             </button>
           </div>
-          <Suspense fallback={<p className="document-status">Loading…</p>}>
-            <DocumentView
-              key={current.document.id}
-              document={current.document}
-              file={files.get(current.document.path)}
-              outcomes={outcomes}
-              activeId={activeId}
-            />
-          </Suspense>
+          <DocumentView
+            key={current.document.id}
+            document={current.document}
+            file={files.get(current.document.path)}
+            outcomes={outcomes}
+            activeId={activeId}
+          />
           <footer className="shortcuts">
             <span>
               <kbd>↑</kbd> <kbd>↓</kbd> tinted paragraph

@@ -1,12 +1,12 @@
-import type { ParseResult, ParsedDocument, Passage, TextRange } from "../types.ts";
+import { documentFormat, type ParseResult, type ParsedDocument, type Passage, type TextRange } from "../types.ts";
 import { markdownBlocks } from "./markdown.ts";
-import { chunkTracedBySentence, splitParagraphs, traced, type TracedText } from "./split.ts";
+import { chunkTracedBySentence, rangesOf, splitTracedParagraphs, traced, type TracedText } from "./split.ts";
 
 interface Block {
   text: TracedText;
   page?: number;
   heading?: string;
-  textRanges?: (offsets: readonly number[]) => TextRange[];
+  textRanges: (offsets: readonly number[]) => TextRange[];
 }
 
 /** Each document's path is the file's path relative to the picked folder. */
@@ -37,7 +37,7 @@ async function parseDocument(
       chunkTracedBySentence(text, passageMaxChars).map((chunk) => ({
         ...rest,
         text: chunk.text,
-        textRanges: textRanges?.(chunk.offsets),
+        textRanges: textRanges(chunk.offsets),
       })),
     )
     .map(({ text, page, heading, textRanges }, index) => ({
@@ -46,22 +46,25 @@ async function parseDocument(
       text,
       ...(page === undefined ? {} : { page }),
       ...(heading === undefined ? {} : { heading }),
-      ...(textRanges === undefined ? {} : { textRanges }),
+      textRanges,
     }));
   return { id, path, passages };
 }
 
 async function blocksOf(file: File, path: string): Promise<Block[]> {
-  switch (path.slice(path.lastIndexOf(".")).toLowerCase()) {
-    case ".pdf":
+  switch (documentFormat(path)) {
+    case "pdf":
       // pdf.js is most of the bundle, so it loads only once a PDF is read.
       return (await import("./pdf.ts")).pdfBlocks(new Uint8Array(await file.arrayBuffer()));
-    case ".md":
-    case ".markdown":
-      return markdownBlocks(await file.text()).map(({ text, ...rest }) => ({ ...rest, text: traced(text) }));
-    case ".txt":
-      return splitParagraphs(await file.text()).map((text) => ({ text: traced(text) }));
+    case "markdown":
+      return markdownBlocks(await file.text());
+    case "text":
+      return splitTracedParagraphs(traced(await file.text())).map((text) => ({ text, textRanges: plainTextRanges }));
     default:
       throw new Error("Unsupported file type; expected .pdf, .md, .markdown or .txt");
   }
+}
+
+function plainTextRanges(offsets: readonly number[]): TextRange[] {
+  return rangesOf(offsets, (offset) => ({ item: 0, char: offset }));
 }

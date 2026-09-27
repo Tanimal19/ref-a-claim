@@ -1,8 +1,20 @@
 export const STANCES = ["supports", "refutes", "unrelated"] as const;
 export type Stance = (typeof STANCES)[number];
 
-// Only PDFs can be shown as the original document so far; the Markdown and plain-text readers stay in parse/.
-export const SUPPORTED_EXTENSIONS = [".pdf"] as const;
+export type DocumentFormat = "pdf" | "markdown" | "text";
+
+const FORMAT_BY_EXTENSION: Record<string, DocumentFormat> = {
+  ".pdf": "pdf",
+  ".md": "markdown",
+  ".markdown": "markdown",
+  ".txt": "text",
+};
+
+export const SUPPORTED_EXTENSIONS = Object.keys(FORMAT_BY_EXTENSION);
+
+export function documentFormat(path: string): DocumentFormat | undefined {
+  return FORMAT_BY_EXTENSION[path.slice(path.lastIndexOf(".")).toLowerCase()];
+}
 
 export interface Passage {
   id: string;
@@ -11,15 +23,18 @@ export interface Passage {
   text: string;
   /** 1-based page number; only set for PDFs. */
   page?: number;
-  /** Where the passage sits in its page's text, in document order; only set for PDFs. */
+  /** Where the passage sits in its document's text items (its page's, for PDFs), in document order. */
   textRanges?: TextRange[];
   /** Trail of headings the passage sits under, outermost first, joined by " > "; only set for Markdown. */
   heading?: string;
 }
 
 /**
- * The UTF-16 code units `[start, end)` of text item `item` on a PDF page. Items are counted as pdf.js's `TextLayer`
- * counts its `textDivs`: the page's `getTextContent()` items that have a `str`, in order.
+ * The UTF-16 code units `[start, end)` of text item `item`. What an item is depends on the document's format:
+ * - PDF: an item on the passage's page, counted as pdf.js's `TextLayer` counts its `textDivs`: the page's
+ *   `getTextContent()` items that have a `str`, in order.
+ * - Markdown: a text or inline code node of the syntax tree, counted in document order (see `readMarkdown`).
+ * - Plain text: always item 0, the whole file as read.
  */
 export interface TextRange {
   item: number;

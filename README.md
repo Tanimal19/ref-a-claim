@@ -1,7 +1,7 @@
 # ref-a-claim
 
-Enter a claim, pick a folder of `.pdf` files, and read each paper as it is, with the paragraphs that
-support or refute the claim tinted in place. Each paragraph is classified by TypeSafe's
+Enter a claim, pick a folder of `.pdf`, `.md` / `.markdown` and `.txt` files, and read each paper as it
+is, with the paragraphs that support or refute the claim tinted in place. Each paragraph is classified by TypeSafe's
 [Jev](https://docs.typesafe.ai/introduction) model.
 
 Everything runs in the browser; each user brings their own TypeSafe API key.
@@ -44,21 +44,26 @@ the site's origin.
 
 ## How it works
 
-1. Picked files are read in the browser: text is extracted with pdf.js, split into paragraphs on
-   blank lines, and any paragraph longer than the maximum paragraph length is split on sentence
-   boundaries. Each paragraph remembers which pdf.js text items (and which characters of them) it
-   came from. Changing that length in Settings re-reads the loaded documents.
+1. Picked files are read in the browser and split into paragraphs: PDFs by extracting their text
+   with pdf.js and splitting it on blank lines, Markdown by parsing it (GFM) and taking its prose
+   blocks (paragraphs, lists, block quotes, tables, footnotes; headings, code and HTML are left out),
+   and plain text by splitting it on blank lines. Any paragraph longer than the maximum paragraph
+   length is split on sentence boundaries. Each paragraph remembers which text items (and which
+   characters of them) it came from: pdf.js text items for PDFs, text and inline code nodes of the
+   syntax tree for Markdown, and the file itself for plain text. Changing that length in Settings
+   re-reads the loaded documents.
 2. **Analyze** sends one Jev request per paragraph, with `{ claim, context, passage }` as the state
    and a single Choice question (`supports` / `refutes` / `unrelated`), at most 8 at a time.
    `context` holds the neighbouring paragraphs in the same document (how many is a setting), plus
    the heading trail for Markdown; the model reads it only to understand `passage`, and the stance
    is about `passage` alone. Results appear as each request finishes.
-3. The results show the original PDF (canvas plus pdf.js's text layer). Each paragraph's characters
-   are wrapped in spans inside the text layer and tinted by stance; unrelated paragraphs stay
-   untinted. Clicking a tinted paragraph shows its scores.
+3. The results show the original document: a PDF as drawn by pdf.js (canvas plus its text layer),
+   Markdown rendered as HTML (raw HTML is shown as source, not run; images as their alt text), and
+   plain text as written. Each paragraph's characters are wrapped in spans and tinted by stance;
+   unrelated paragraphs stay untinted. Clicking a tinted paragraph shows its scores.
 
 Nothing is stored anywhere; reloading the page clears everything. To keep a finished (or
 cancelled / failed) analysis, click **Export results** to download it as JSON, and later
 **Open results…** to load that file back into the UI — claim, documents, and results are restored
-without re-reading or re-running anything. The file embeds the original PDFs (base64), so it is
+without re-reading or re-running anything. The file embeds the original files (base64), so it is
 about a third larger than the papers themselves.

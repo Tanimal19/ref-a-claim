@@ -2,23 +2,7 @@ import { TextLayer, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { pageTextContent } from "../pdfjs.ts";
 import type { Category } from "../results.ts";
-import type { TextRange } from "../types.ts";
-
-/** Where a passage begins: the first character of its first text range. */
-export interface PassageStart {
-  passageId: string;
-  /** Unset while the passage has no outcome yet. */
-  category?: Category;
-  item: number;
-  start: number;
-}
-
-export interface Highlight {
-  passageId: string;
-  category: Category;
-  lowConfidence: boolean;
-  ranges: readonly TextRange[];
-}
+import { highlightClass, type Highlight, type PassageStart } from "./highlights.ts";
 
 interface Props {
   pdf: PDFDocumentProxy;
@@ -203,10 +187,6 @@ function paint(layer: Layer, highlights: readonly Highlight[]): void {
     div.replaceChildren(...nodes);
     layer.painted.push(item);
   }
-}
-
-function highlightClass({ category, lowConfidence }: Highlight): string {
-  return `hl ${category}${lowConfidence ? " low-confidence" : ""}`;
 }
 
 /** Placed over the first character of each passage; run after painting, as painting splits the items' text. */

@@ -1,7 +1,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { loadPdf, pageTextContent, textItems } from "../pdfjs.ts";
 import type { TextRange } from "../types.ts";
-import { splitTracedParagraphs, traced, type TracedText } from "./split.ts";
+import { rangesOf, splitTracedParagraphs, traced, type TracedText } from "./split.ts";
 
 export interface PdfBlock {
   text: TracedText;
@@ -41,24 +41,7 @@ async function pageBlocks(pdf: PDFDocumentProxy, pageNumber: number): Promise<Pd
     }
   });
 
-  const textRanges = (offsets: readonly number[]) => rangesOf(offsets, itemOf, charOf);
+  const textRanges = (offsets: readonly number[]) =>
+    rangesOf(offsets, (offset) => (itemOf[offset]! < 0 ? undefined : { item: itemOf[offset]!, char: charOf[offset]! }));
   return splitTracedParagraphs(traced(pageText)).map((text) => ({ text, page: pageNumber, textRanges }));
-}
-
-/**
- * A passage is one stretch of its page's text, so within an item its range runs from its first to its last code unit,
- * which takes in the whitespace and hyphens that were trimmed or dropped from its text.
- */
-function rangesOf(offsets: readonly number[], itemOf: readonly number[], charOf: readonly number[]): TextRange[] {
-  const ranges: TextRange[] = [];
-  for (const offset of offsets) {
-    if (offset < 0) continue;
-    const item = itemOf[offset]!;
-    if (item < 0) continue;
-    const char = charOf[offset]!;
-    const last = ranges.at(-1);
-    if (last && last.item === item && char >= last.end) last.end = char + 1;
-    else ranges.push({ item, start: char, end: char + 1 });
-  }
-  return ranges;
 }

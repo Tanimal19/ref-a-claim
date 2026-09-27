@@ -1,3 +1,5 @@
+import type { TextRange } from "../types.ts";
+
 const CJK_CHAR = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿＀-￯]/u;
 
 const sentenceSegmenter = new Intl.Segmenter(undefined, { granularity: "sentence" });
@@ -15,11 +17,38 @@ export function traced(text: string): TracedText {
   return { text, offsets: Array.from({ length: text.length }, (_, i) => i) };
 }
 
-/** Splits plain text on blank lines and rejoins hard-wrapped lines inside each paragraph. */
-export function splitParagraphs(text: string): string[] {
-  return splitTracedParagraphs(traced(text)).map((paragraph) => paragraph.text);
+/** Joins `parts` with `separator` between them; the separators are inserted text. */
+export function joinTraced(parts: readonly TracedText[], separator: string): TracedText {
+  const result: TracedText = { text: "", offsets: [] };
+  parts.forEach((part, i) => {
+    if (i > 0) append(result, { text: separator, offsets: Array.from({ length: separator.length }, () => -1) });
+    append(result, part);
+  });
+  return result;
 }
 
+/** Where the source's code unit at an offset lies: its text item and its position in that item, if it is in one. */
+export type Locate = (offset: number) => { item: number; char: number } | undefined;
+
+/**
+ * A passage is one stretch of its source, so within an item its range runs from its first to its last code unit,
+ * which takes in the whitespace and hyphens that were trimmed or dropped from its text.
+ */
+export function rangesOf(offsets: readonly number[], locate: Locate): TextRange[] {
+  const ranges: TextRange[] = [];
+  for (const offset of offsets) {
+    if (offset < 0) continue;
+    const location = locate(offset);
+    if (!location) continue;
+    const { item, char } = location;
+    const last = ranges.at(-1);
+    if (last && last.item === item && char >= last.end) last.end = char + 1;
+    else ranges.push({ item, start: char, end: char + 1 });
+  }
+  return ranges;
+}
+
+/** Splits text on blank lines and rejoins hard-wrapped lines inside each paragraph. */
 export function splitTracedParagraphs(source: TracedText): TracedText[] {
   const normalized = normalizeNewlines(source);
   const paragraphs: TracedText[] = [];

@@ -1,7 +1,21 @@
-import { STANCES, type ParsedDocument, type Passage, type StanceResult, type TextRange } from "./types.ts";
+import {
+  STANCES,
+  documentFormat,
+  type DocumentFormat,
+  type ParsedDocument,
+  type Passage,
+  type StanceResult,
+  type TextRange,
+} from "./types.ts";
 import type { Outcome } from "./results.ts";
 
 const FORMAT = "ref-a-claim/run";
+
+const MEDIA_TYPES: Record<DocumentFormat, string> = {
+  pdf: "application/pdf",
+  markdown: "text/markdown",
+  text: "text/plain",
+};
 
 export type FinishedStatus = "done" | "cancelled" | "failed";
 
@@ -121,7 +135,9 @@ export async function readRunFile(file: File): Promise<OpenedRun> {
     } catch {
       throw malformed;
     }
-    files.set(path, new File([bytes], path.slice(path.lastIndexOf("/") + 1), { type: "application/pdf" }));
+    const format = documentFormat(path);
+    const options = format === undefined ? undefined : { type: MEDIA_TYPES[format] };
+    files.set(path, new File([bytes], path.slice(path.lastIndexOf("/") + 1), options));
   }
 
   return {
