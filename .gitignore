@@ -2,3 +2,4 @@ node_modules
 dist
 .env
 settings.local.json
+.DS_Store
