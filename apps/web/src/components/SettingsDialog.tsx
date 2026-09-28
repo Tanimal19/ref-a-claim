@@ -5,6 +5,8 @@ import {
   CONTEXT_PARAGRAPHS_MAX,
   PASSAGE_MAX_CHARS_MAX,
   PASSAGE_MAX_CHARS_MIN,
+  POSSIBLE_ABOVE_MAX,
+  POSSIBLE_ABOVE_MIN,
   type ModelInfo,
   type Settings,
 } from "../types.ts";
@@ -43,6 +45,7 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
   const [passageMaxChars, setPassageMaxChars] = useState(String(settings.passageMaxChars));
   const [contextParagraphs, setContextParagraphs] = useState(settings.contextParagraphs);
   const [contextHeading, setContextHeading] = useState(settings.contextHeading);
+  const [possibleAbove, setPossibleAbove] = useState(String(settings.possibleAbove));
   const [models, setModels] = useState<ModelInfo[]>();
   const [modelsError, setModelsError] = useState<string>();
   const modelListId = useId();
@@ -60,10 +63,14 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
   const maxCharsValid = Number.isInteger(maxChars) && maxChars >= PASSAGE_MAX_CHARS_MIN && maxChars <= PASSAGE_MAX_CHARS_MAX;
   const maxCharsChanged = maxCharsValid && maxChars !== settings.passageMaxChars;
   const resplits = maxCharsChanged && resplittableCount > 0;
+  const threshold = Number(possibleAbove);
+  const thresholdValid =
+    possibleAbove.trim() !== "" && threshold >= POSSIBLE_ABOVE_MIN && threshold <= POSSIBLE_ABOVE_MAX;
+  const valid = maxCharsValid && thresholdValid;
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!maxCharsValid) return;
+    if (!valid) return;
     const nextKey = removeKey ? undefined : apiKey.trim() || settings.apiKey;
     onSaved({
       ...(nextKey === undefined ? {} : { apiKey: nextKey }),
@@ -71,6 +78,7 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
       passageMaxChars: maxChars,
       contextParagraphs,
       contextHeading,
+      possibleAbove: threshold,
     });
   }
 
@@ -171,7 +179,7 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
         </label>
         <label className="check">
           <input type="checkbox" checked={contextHeading} onChange={(e) => setContextHeading(e.target.checked)} />
-          Include the section heading (Markdown)
+          Include the section heading
         </label>
         <p className="field-hint">
           The model reads context only to understand the paragraph; the stance is judged on the paragraph alone. More
@@ -179,11 +187,32 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
         </p>
       </fieldset>
 
+      <fieldset>
+        <legend>Results</legend>
+        <label className="field">
+          <span className="field-label">Possibly related from</span>
+          <input
+            type="number"
+            min={POSSIBLE_ABOVE_MIN}
+            max={POSSIBLE_ABOVE_MAX}
+            step={0.05}
+            required
+            value={possibleAbove}
+            onChange={(e) => setPossibleAbove(e.target.value)}
+          />
+        </label>
+        <p className="field-hint">
+          A paragraph the model judges unrelated to a claim is shown as possibly supporting or refuting it when that
+          stance’s probability reaches this, from {POSSIBLE_ABOVE_MIN} to {POSSIBLE_ABOVE_MAX}. {POSSIBLE_ABOVE_MAX}{" "}
+          shows almost none. Applies to the current results right away.
+        </p>
+      </fieldset>
+
       <div className="dialog-actions">
         <button type="button" onClick={onClose}>
           Cancel
         </button>
-        <button type="submit" className="primary" disabled={!maxCharsValid}>
+        <button type="submit" className="primary" disabled={!valid}>
           {resplits ? "Save and re-read" : "Save"}
         </button>
       </div>

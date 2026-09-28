@@ -1,7 +1,8 @@
 import { useId, useRef, useState, type CSSProperties, type ReactNode, type ToggleEvent } from "react";
+import type { ClaimView } from "../results.ts";
 
 export interface RunSummary {
-  claim: string;
+  claims: string[];
   status: "running" | "done" | "cancelled" | "failed";
   total: number;
   finished: number;
@@ -10,6 +11,8 @@ export interface RunSummary {
 interface Props {
   view: "setup" | "results";
   run?: RunSummary;
+  claimView: ClaimView;
+  onClaimViewChange: (view: ClaimView) => void;
   onEdit: () => void;
   onBackToResults: () => void;
   onCancel: () => void;
@@ -20,7 +23,7 @@ interface Props {
   usage: ReactNode;
 }
 
-export function AppHeader({ view, run, ...props }: Props) {
+export function AppHeader({ view, run, claimView, onClaimViewChange, ...props }: Props) {
   return (
     <>
       <header className="app-header">
@@ -58,13 +61,41 @@ export function AppHeader({ view, run, ...props }: Props) {
       </header>
       {view === "results" && run && (
         <div className="claim-bar">
-          <p className="claim">{run.claim}</p>
+          {run.claims.length === 1 ? (
+            <p className="claim">{run.claims[0]}</p>
+          ) : (
+            <ClaimSwitch claims={run.claims} view={claimView} onChange={onClaimViewChange} />
+          )}
           <button type="button" className="link quiet" onClick={props.onEdit}>
             Edit claim &amp; papers
           </button>
         </div>
       )}
     </>
+  );
+}
+
+interface ClaimSwitchProps {
+  claims: string[];
+  view: ClaimView;
+  onChange: (view: ClaimView) => void;
+}
+
+/** Picks which claim the results are shown for, or all of them combined. */
+function ClaimSwitch({ claims, view, onChange }: ClaimSwitchProps) {
+  return (
+    <div className="claim claim-switch" role="group" aria-label="Show results for">
+      <button type="button" className="claim-option" aria-pressed={view === "all"} onClick={() => onChange("all")}>
+        <span className="claim-number">All</span>
+        <span className="claim-text muted">Every claim combined: each paragraph shows its strongest result</span>
+      </button>
+      {claims.map((claim, i) => (
+        <button key={i} type="button" className="claim-option" aria-pressed={view === i} onClick={() => onChange(i)}>
+          <span className="claim-number">{i + 1}</span>
+          <span className="claim-text">{claim}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 

@@ -1,4 +1,11 @@
-import { CONTEXT_PARAGRAPHS_MAX, PASSAGE_MAX_CHARS_MAX, PASSAGE_MAX_CHARS_MIN, type Settings } from "./types.ts";
+import {
+  CONTEXT_PARAGRAPHS_MAX,
+  PASSAGE_MAX_CHARS_MAX,
+  PASSAGE_MAX_CHARS_MIN,
+  POSSIBLE_ABOVE_MAX,
+  POSSIBLE_ABOVE_MIN,
+  type Settings,
+} from "./types.ts";
 
 /** What the SDK uses when no model is given. */
 export const DEFAULT_MODEL = "jev-latest";
@@ -6,7 +13,13 @@ export const DEFAULT_MODEL = "jev-latest";
 const API_KEY_KEY = "ref-a-claim:api-key";
 const PREFERENCES_KEY = "ref-a-claim:settings";
 
-const DEFAULTS: Settings = { model: "", passageMaxChars: 1500, contextParagraphs: 1, contextHeading: true };
+const DEFAULTS: Settings = {
+  model: "",
+  passageMaxChars: 1500,
+  contextParagraphs: 1,
+  contextHeading: true,
+  possibleAbove: 0.25,
+};
 
 /**
  * The API key lives in `sessionStorage` so it ends with the tab; the other settings are harmless and outlive it in
@@ -15,7 +28,7 @@ const DEFAULTS: Settings = { model: "", passageMaxChars: 1500, contextParagraphs
 export function loadSettings(): Settings {
   const apiKey = attempt(() => sessionStorage.getItem(API_KEY_KEY))?.trim() || undefined;
   const stored = parse(attempt(() => localStorage.getItem(PREFERENCES_KEY)));
-  const { model, passageMaxChars, contextParagraphs, contextHeading } = stored;
+  const { model, passageMaxChars, contextParagraphs, contextHeading, possibleAbove } = stored;
   return {
     ...(apiKey === undefined ? {} : { apiKey }),
     model: typeof model === "string" ? model.trim() : DEFAULTS.model,
@@ -24,6 +37,9 @@ export function loadSettings(): Settings {
       : DEFAULTS.passageMaxChars,
     contextParagraphs: isIntIn(contextParagraphs, 0, CONTEXT_PARAGRAPHS_MAX) ? contextParagraphs : DEFAULTS.contextParagraphs,
     contextHeading: typeof contextHeading === "boolean" ? contextHeading : DEFAULTS.contextHeading,
+    possibleAbove: isNumberIn(possibleAbove, POSSIBLE_ABOVE_MIN, POSSIBLE_ABOVE_MAX)
+      ? possibleAbove
+      : DEFAULTS.possibleAbove,
   };
 }
 
@@ -54,5 +70,9 @@ function parse(json: string | null | undefined): Record<string, unknown> {
 }
 
 function isIntIn(value: unknown, min: number, max: number): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+  return isNumberIn(value, min, max) && Number.isInteger(value);
+}
+
+function isNumberIn(value: unknown, min: number, max: number): value is number {
+  return typeof value === "number" && value >= min && value <= max;
 }

@@ -11,11 +11,11 @@ export interface AnalyzeHandlers {
 }
 
 /**
- * Classifies every passage against `claim`, reporting each outcome as it arrives. Resolves once all passages have an
- * outcome; rejects when `signal` aborts, or with the first error that would fail every passage (a rejected API key).
+ * Classifies every passage against each of `claims`, reporting each outcome as it arrives. Resolves once all passages
+ * have an outcome; rejects when `signal` aborts, or with the first error that would fail every passage (a rejected API key).
  */
 export async function analyze(
-  claim: string,
+  claims: readonly string[],
   documents: readonly ParsedDocument[],
   settings: Settings,
   signal: AbortSignal,
@@ -23,7 +23,6 @@ export async function analyze(
 ): Promise<void> {
   if (settings.apiKey === undefined) throw new Error(NO_API_KEY);
   const classify = stanceClassifierFor(settings.apiKey, settings.model || undefined);
-  const trimmedClaim = claim.trim();
   const passages = documents.flatMap((doc) => doc.passages.map((_, i) => withContext(doc.passages, i, settings)));
 
   // Stops the remaining requests on a fatal error without it looking like the user cancelled.
@@ -33,7 +32,7 @@ export async function analyze(
 
   await forEachConcurrent(passages, CONCURRENCY, stop, async (passage) => {
     try {
-      handlers.onResult(await classify(trimmedClaim, passage, stop));
+      handlers.onResult(await classify(claims, passage, stop));
     } catch (error) {
       if (stop.aborted) return;
       if (error instanceof AuthenticationError || error instanceof PermissionDeniedError) {

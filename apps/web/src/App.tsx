@@ -6,13 +6,13 @@ import { ResultsView } from "./components/ResultsView.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { EMPTY_USAGE, UsagePanel, addUsage } from "./components/UsagePanel.tsx";
 import { parseDocuments } from "./parse/index.ts";
-import type { Outcome } from "./results.ts";
+import type { ClaimView, Outcome, Reading } from "./results.ts";
 import { createRunFile, downloadRunFile, readRunFile } from "./runFile.ts";
 import { loadSettings, saveSettings } from "./settings.ts";
 import type { ParseFailure, ParsedDocument, Settings, TokenUsage } from "./types.ts";
 
 interface Run {
-  claim: string;
+  claims: string[];
   total: number;
   status: "running" | "done" | "cancelled" | "failed";
   error?: string;
@@ -30,6 +30,7 @@ export function App() {
   const [run, setRun] = useState<Run>();
   const [outcomes, setOutcomes] = useState<ReadonlyMap<string, Outcome>>(new Map());
   const [shownDocumentId, setShownDocumentId] = useState<string>();
+  const [claimView, setClaimView] = useState<ClaimView>("all");
   const [view, setView] = useState<"setup" | "results">("setup");
   const [sessionUsage, setSessionUsage] = useState<TokenUsage>(EMPTY_USAGE);
   const [resultsFileError, setResultsFileError] = useState<string>();
@@ -38,6 +39,7 @@ export function App() {
   const abortRef = useRef<AbortController>(null);
   const resultsInputRef = useRef<HTMLInputElement>(null);
 
+  const claims = useMemo(() => claimsOf(claim), [claim]);
   const running = run?.status === "running";
   const shownView = run ? view : "setup";
   const passageCount = documents.reduce((sum, doc) => sum + doc.passages.length, 0);
@@ -106,15 +108,16 @@ export function App() {
     abortRef.current = controller;
     setOutcomes(new Map());
     setShownDocumentId(undefined);
+    setClaimView("all");
     setResultsFileError(undefined);
-    setRun({ claim: claim.trim(), total: passageCount, status: "running" });
+    setRun({ claims, total: passageCount, status: "running" });
     setView("results");
 
     const record = (passageId: string, outcome: Outcome) =>
       setOutcomes((prev) => new Map(prev).set(passageId, outcome));
 
     try {
-      await analyze(claim, documents, settings, controller.signal, {
+      await analyze(claims, documents, settings, controller.signal, {
         onResult: (result) => {
           record(result.passageId, { kind: "result", result });
           setSessionUsage((prev) => addUsage(prev, result.usage));
@@ -136,7 +139,7 @@ export function App() {
     if (!run || run.status === "running") return;
     try {
       const runFile = await createRunFile({
-        claim: run.claim,
+        claims: run.claims,
         status: run.status,
         error: run.error,
         documents,
@@ -156,15 +159,16 @@ export function App() {
     if (!file) return;
     try {
       const runFile = await readRunFile(file);
-      setClaim(runFile.claim);
+      setClaim(runFile.claims.join("\n"));
       setDocuments(runFile.documents);
       setSourceFiles(runFile.files);
       setParseFailures([]);
       setReadError(undefined);
       setOutcomes(new Map(Object.entries(runFile.outcomes)));
       setShownDocumentId(undefined);
+      setClaimView("all");
       setRun({
-        claim: runFile.claim,
+        claims: runFile.claims,
         total: runFile.documents.reduce((sum, doc) => sum + doc.passages.length, 0),
         status: runFile.status,
         error: runFile.error,
@@ -186,6 +190,7 @@ export function App() {
     if (passageMaxCharsChanged && files.length > 0 && !running) void addFiles(files, next.passageMaxChars);
   }
 
+  const resultsReading: Reading = { view: claimView, possibleAbove: settings.possibleAbove };
   const errors = [resultsFileError, shownView === "results" ? run?.error : undefined].filter(Boolean);
 
   return (
@@ -194,12 +199,14 @@ export function App() {
         view={shownView}
         run={
           run && {
-            claim: run.claim,
+            claims: run.claims,
             status: run.status,
             total: run.total,
             finished: outcomes.size,
           }
         }
+        claimView={claimView}
+        onClaimViewChange={setClaimView}
         onEdit={() => setView("setup")}
         onBackToResults={() => setView("results")}
         onCancel={() => abortRef.current?.abort()}
@@ -218,6 +225,8 @@ export function App() {
 
       {shownView === "results" ? (
         <ResultsView
+          claims={run?.claims ?? []}
+          reading={resultsReading}
           documents={documents}
           outcomes={outcomes}
           files={sourceFiles}
@@ -247,11 +256,16 @@ export function App() {
               </label>
               <textarea
                 id="claim"
-                rows={3}
-                placeholder="e.g. Remote work increases employee productivity."
+                rows={4}
+                aria-describedby="claim-hint"
+                placeholder={"e.g. Remote work increases employee productivity.\nRemote workers put in more hours."}
                 value={claim}
                 onChange={(e) => setClaim(e.target.value)}
               />
+              <p id="claim-hint" className="hint">
+                One claim per line. Put each part of a compound claim on its own line to see which part a paragraph
+                bears on.
+              </p>
             </section>
 
             <DocumentPicker
@@ -269,7 +283,7 @@ export function App() {
               <button
                 type="button"
                 className="primary"
-                disabled={running || claim.trim() === "" || passageCount === 0 || reading}
+                disabled={running || claims.length === 0 || passageCount === 0 || reading}
                 onClick={startAnalysis}
               >
                 Analyze {passageCount} paragraph{passageCount === 1 ? "" : "s"}
@@ -289,4 +303,12 @@ export function App() {
       />
     </div>
   );
+}
+
+/** Each non-blank line is one claim. */
+function claimsOf(text: string): string[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
 }

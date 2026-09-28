@@ -56,6 +56,14 @@ body {
   --stance: var(--refutes);
 }
 
+.possibly-supports {
+  --stance: var(--supports);
+}
+
+.possibly-refutes {
+  --stance: var(--refutes);
+}
+
 .unrelated {
   --stance: var(--unrelated);
 }
@@ -302,6 +310,51 @@ kbd {
 
 .claim-bar .link {
   flex-shrink: 0;
+}
+
+.claim-switch {
+  max-height: calc(7 * 1.6em);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: normal;
+}
+
+.claim-option {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 1px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  color: var(--ink-2);
+}
+
+.claim-option:hover {
+  background: var(--ground);
+}
+
+.claim-option[aria-pressed="true"] {
+  background: var(--ground);
+  color: var(--ink);
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+.claim-number {
+  flex-shrink: 0;
+  min-width: 1.6em;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.claim-text {
+  min-width: 0;
 }
 
 .header-claim .link {
@@ -577,6 +630,10 @@ a.icon-button {
   font-weight: 600;
 }
 
+.side-counts > .possible-count {
+  font-weight: 400;
+}
+
 .side-counts > .low-confidence-count {
   display: inline-flex;
   align-items: center;
@@ -604,6 +661,10 @@ a.icon-button {
 
 .segment.pending {
   min-width: 0;
+}
+
+.segment:is(.possibly-supports, .possibly-refutes) {
+  background: color-mix(in srgb, var(--stance) 40%, var(--surface));
 }
 
 button.segment:hover {
@@ -781,6 +842,14 @@ button.segment:hover {
 
 :is(.textLayer, .text-document) .hl.low-confidence {
   background: color-mix(in srgb, var(--stance) 10%, transparent);
+}
+
+/* Possibly related passages: a fainter tint, told apart from low-confidence ones by a dashed underline. */
+:is(.textLayer, .text-document) .hl:is(.possibly-supports, .possibly-refutes) {
+  background: color-mix(in srgb, var(--stance) 7%, transparent);
+  text-decoration: underline dashed color-mix(in srgb, var(--stance) 70%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 :is(.textLayer, .text-document) .hl.hovered {
@@ -996,6 +1065,10 @@ button.segment:hover {
   cursor: default;
 }
 
+.passage-card:is(.possibly-supports, .possibly-refutes) {
+  border-left-style: dashed;
+}
+
 .passage-card.low-confidence {
   border-top-color: var(--low);
   border-right-color: var(--low);
@@ -1065,8 +1138,10 @@ button.segment:hover {
   color: var(--ink);
 }
 
-.scores .model {
-  margin-left: auto;
+.passage-card .model {
+  margin: 0;
+  align-self: flex-end;
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 
@@ -1224,4 +1299,56 @@ button.segment:hover {
   .dialog-body .notice {
     margin-left: 0;
   }
+}
+
+/* Per-claim results in the passage card when a run has several claims */
+.claim-scores {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claim-scores li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 2px solid transparent;
+}
+
+.claim-scores li.current {
+  border-left-color: var(--ink-3);
+}
+
+.claim-scores-claim {
+  margin: 0;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+.claim-scores-claim .claim-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.claim-scores-result {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.claim-scores-result .stance-label {
+  color: var(--stance);
+}
+
+.claim-scores li.unrelated .stance-label {
+  color: var(--ink-2);
 }

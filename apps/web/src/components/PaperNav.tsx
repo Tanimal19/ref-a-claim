@@ -114,10 +114,12 @@ function SideCounts({ counts, lowConfidence }: { counts: Counts; lowConfidence: 
       <span className="supports" title={CATEGORY_LABELS.supports}>
         {counts.supports}
       </span>
+      <PossibleCount counts={counts} category="possibly-supports" />
       {" · "}
       <span className="refutes" title={CATEGORY_LABELS.refutes}>
         {counts.refutes}
       </span>
+      <PossibleCount counts={counts} category="possibly-refutes" />
       {counts.failed > 0 && (
         <>
           {" · "}
@@ -138,6 +140,16 @@ function SideCounts({ counts, lowConfidence }: { counts: Counts; lowConfidence: 
           {lowConfidence}
         </span>
       )}
+    </span>
+  );
+}
+
+function PossibleCount({ counts, category }: { counts: Counts; category: "possibly-supports" | "possibly-refutes" }) {
+  const count = counts[category];
+  if (count === 0) return null;
+  return (
+    <span className={`possible-count ${category}`} title={CATEGORY_LABELS[category]}>
+      {" "}+{count}
     </span>
   );
 }
