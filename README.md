@@ -1,13 +1,13 @@
 # ref-a-claim
 
+*It finds the references. You're the ref.*
+
 Enter a claim, pick a folder of `.pdf`, `.md` or `.txt` files, and read each paper as it
 is, with the paragraphs that support or refute the claim tinted in place. A compound claim can be entered as several
 claims, one per line, to see which part each paragraph bears on. Each paragraph is classified by TypeSafe's
 [Jev](https://docs.typesafe.ai/introduction) model.
 
 ![ref-a-claim checking a claim against a folder of papers](docs/demo.gif)
-
-<sub>The papers in the video are fictional examples.</sub>
 
 Everything runs in the browser; nothing is sent to a server.
 See demo at [https://ref-a-claim.vercel.app/](https://ref-a-claim.vercel.app/).

@@ -1,18 +1,21 @@
 import type { Category } from "../results.ts";
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 export const en = {
   setup: {
-    title: "Check a claim against your papers",
+    title: "Check a claim against papers",
     subtitle: "See which paragraphs support, refute, or are unrelated to it.",
     noApiKey: "Add a TypeSafe API key before analyzing.",
     openSettings: "Open settings",
     claim: "Claim",
-    claimPlaceholder: "e.g. Remote work increases employee productivity.\nRemote workers put in more hours.",
+    claimPlaceholder:
+      "e.g. Remote work increases employee productivity.\nRemote workers put in more hours.",
     claimHint:
       "One claim per line. Put each part of a compound claim on its own line to see which part a paragraph bears on.",
-    analyze: (paragraphs: number) => `Analyze ${plural(paragraphs, "paragraph")}`,
+    analyze: (paragraphs: number) =>
+      `Analyze ${plural(paragraphs, "paragraph")}`,
   },
   header: {
     backToResults: "Back to results →",
@@ -24,7 +27,8 @@ export const en = {
     editClaim: "Edit claim & papers",
     showResultsFor: "Show results for",
     allClaims: "All",
-    allClaimsDescription: "Every claim combined: each paragraph shows its strongest result",
+    allClaimsDescription:
+      "Every claim combined: each paragraph shows its strongest result",
     cancel: "Cancel",
     status: { done: "Done", cancelled: "Cancelled", failed: "Failed" },
     /** Labels the button that switches to the other language, in that language's own words. */
@@ -36,7 +40,8 @@ export const en = {
     reading: "Reading…",
     chooseFolder: "Choose folder",
     clear: "Clear",
-    hint: (extensions: readonly string[]) => `Reads ${extensions.join(", ")} files in the folder and its subfolders.`,
+    hint: (extensions: readonly string[]) =>
+      `Reads ${extensions.join(", ")} files in the folder and its subfolders.`,
     paragraphs: (n: number) => plural(n, "paragraph"),
     remove: "Remove",
     removeLabel: (path: string) => `Remove ${path}`,
@@ -62,10 +67,13 @@ export const en = {
     paragraphs: "Paragraphs",
     maxLength: "Max length",
     characters: "characters",
-    maxLengthHint: "Longer paragraphs are split on sentence boundaries when documents are read.",
+    maxLengthHint:
+      "Longer paragraphs are split on sentence boundaries when documents are read.",
     resplitNotice: (resplittable: number, kept: number) =>
       `Saving re-reads ${plural(resplittable, "loaded document")} with the new length and clears the current results.` +
-      (kept > 0 ? ` ${kept} opened from a results file will keep their current split.` : ""),
+      (kept > 0
+        ? ` ${kept} opened from a results file will keep their current split.`
+        : ""),
     context: "Context sent with each paragraph",
     neighbours: "Neighbouring paragraphs",
     noNeighbours: "None",
@@ -134,17 +142,22 @@ export const en = {
     unsupported: "This type of file cannot be shown.",
     paperError: (error: string) => `The paper could not be shown: ${error}`,
     textError: (error: string) => `The document could not be shown: ${error}`,
-    pageError: (page: number, error: string) => `Page ${page} could not be drawn: ${error}`,
+    pageError: (page: number, error: string) =>
+      `Page ${page} could not be drawn: ${error}`,
   },
   errors: {
     noApiKey: "No TypeSafe API key is configured. Add one in Settings.",
     unsupportedFileType: (extensions: readonly string[]) =>
       `Unsupported file type; expected ${extensions.slice(0, -1).join(", ")} or ${extensions.at(-1)}`,
-    missingAnswer: "The model's response is missing an answer for one of the claims.",
+    missingAnswer:
+      "The model's response is missing an answer for one of the claims.",
     notJson: (name: string) => `${name} is not a valid JSON file.`,
-    notResultsFile: (name: string) => `${name} is not a ref-a-claim results file.`,
-    malformedResultsFile: (name: string) => `${name} is malformed and cannot be opened.`,
-    originalFileUnavailable: (path: string) => `The original file of ${path} is no longer available.`,
+    notResultsFile: (name: string) =>
+      `${name} is not a ref-a-claim results file.`,
+    malformedResultsFile: (name: string) =>
+      `${name} is malformed and cannot be opened.`,
+    originalFileUnavailable: (path: string) =>
+      `The original file of ${path} is no longer available.`,
   },
 };
 

@@ -3,3 +3,4 @@ dist
 .env
 settings.local.json
 .DS_Store
+promo
