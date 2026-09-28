@@ -1,4 +1,5 @@
-import { documentFormat, type ParseResult, type ParsedDocument, type Passage, type TextRange } from "../types.ts";
+import { LocalizedError } from "../i18n/errors.ts";
+import { SUPPORTED_EXTENSIONS, documentFormat, type ParseResult, type ParsedDocument, type Passage, type TextRange } from "../types.ts";
 import { markdownBlocks } from "./markdown.ts";
 import { chunkTracedBySentence, rangesOf, splitTracedParagraphs, traced, type TracedText } from "./split.ts";
 
@@ -18,8 +19,7 @@ export async function parseDocuments(files: readonly File[], passageMaxChars: nu
     if (outcome.status === "fulfilled") {
       result.documents.push(outcome.value);
     } else {
-      const message = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
-      result.failures.push({ path: paths[i]!, message });
+      result.failures.push({ path: paths[i]!, error: outcome.reason });
     }
   });
   return result;
@@ -61,7 +61,7 @@ async function blocksOf(file: File, path: string): Promise<Block[]> {
     case "text":
       return splitTracedParagraphs(traced(await file.text())).map((text) => ({ text, textRanges: plainTextRanges }));
     default:
-      throw new Error("Unsupported file type; expected .pdf, .md, .markdown or .txt");
+      throw new LocalizedError((m) => m.errors.unsupportedFileType(SUPPORTED_EXTENSIONS));
   }
 }
 

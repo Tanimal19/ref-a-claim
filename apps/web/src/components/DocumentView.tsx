@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { isLowConfidence, outcomeCategory, type Outcome } from "../results.ts";
-import { documentFormat, type ParsedDocument } from "../types.ts";
+import { useMessages } from "../i18n/index.tsx";
+import { judge, type Outcome, type Reading } from "../results.ts";
+import { documentFormat, type ParsedDocument, type Passage, type TextRange } from "../types.ts";
 import type { Highlight, PassageStart } from "./highlights.ts";
 import { PassageCard } from "./PassageCard.tsx";
 import { TextDocument } from "./TextDocument.tsx";
@@ -12,12 +13,16 @@ interface Props {
   document: ParsedDocument;
   /** The file `document` was read from. */
   file?: File;
+  claims: readonly string[];
+  reading: Reading;
   outcomes: ReadonlyMap<string, Outcome>;
   activeId?: string;
 }
 
 /** Shows the original document with each analyzed passage tinted by its stance; unrelated passages stay untinted. */
-export function DocumentView({ document, file, outcomes, activeId }: Props) {
+export function DocumentView({ document, file, claims, reading, outcomes, activeId }: Props) {
+  const m = useMessages();
+  const { view, possibleAbove } = reading;
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string>();
   // The passage to bring into view once it has been drawn; its page may not be rendered yet.
@@ -29,20 +34,18 @@ export function DocumentView({ document, file, outcomes, activeId }: Props) {
       document.passages.flatMap((passage): Highlight[] => {
         const outcome = outcomes.get(passage.id);
         if (!outcome || !passage.textRanges) return [];
-        const category = outcomeCategory(outcome);
+        const { category, lowConfidence } = judge(outcome, { view, possibleAbove });
         // Unrelated passages get (untinted) spans only when navigated to, as scrolling to a passage looks for its spans.
         if (category === "unrelated" && passage.id !== activeId) return [];
-        return [
-          {
-            passageId: passage.id,
-            page: passage.page,
-            category,
-            lowConfidence: isLowConfidence(outcome),
-            ranges: passage.textRanges,
-          },
-        ];
+        return rangesByPage(passage, passage.textRanges).map(({ page, ranges }) => ({
+          passageId: passage.id,
+          page,
+          category,
+          lowConfidence,
+          ranges,
+        }));
       }),
-    [document, outcomes, activeId],
+    [document, outcomes, activeId, view, possibleAbove],
   );
 
   const starts = useMemo(
@@ -54,14 +57,14 @@ export function DocumentView({ document, file, outcomes, activeId }: Props) {
         return [
           {
             passageId: passage.id,
-            page: passage.page,
-            category: outcome && outcomeCategory(outcome),
+            page: first.page ?? passage.page,
+            category: outcome && judge(outcome, { view, possibleAbove }).category,
             item: first.item,
             start: first.start,
           },
         ];
       }),
-    [document, outcomes],
+    [document, outcomes, view, possibleAbove],
   );
 
   const activePassage = document.passages.find((passage) => passage.id === activeId);
@@ -147,9 +150,9 @@ export function DocumentView({ document, file, outcomes, activeId }: Props) {
         onMouseLeave={() => setHoveredId(undefined)}
       >
         {!file ? (
-          <p className="document-status">The original file of this paper is not available.</p>
+          <p className="document-status">{m.document.fileUnavailable}</p>
         ) : format === "pdf" ? (
-          <Suspense fallback={<p className="document-status">Loading…</p>}>
+          <Suspense fallback={<p className="document-status">{m.document.loading}</p>}>
             <PdfDocument
               file={file}
               scroller={scroller}
@@ -162,19 +165,28 @@ export function DocumentView({ document, file, outcomes, activeId }: Props) {
         ) : format ? (
           <TextDocument file={file} format={format} highlights={highlights} starts={starts} onPainted={handlePainted} />
         ) : (
-          <p className="error document-status">This type of file cannot be shown.</p>
+          <p className="error document-status">{m.document.unsupported}</p>
         )}
       </div>
       {cardPassage && cardOutcome && (
         <div className="passage-card-dock">
-          <PassageCard
-            passage={cardPassage}
-            outcome={cardOutcome}
-          />
+          <PassageCard passage={cardPassage} outcome={cardOutcome} claims={claims} reading={reading} />
         </div>
       )}
     </div>
   );
+}
+
+/** Splits a passage's ranges by the page they are on, as each page draws its own; one group outside PDFs. */
+function rangesByPage(passage: Passage, ranges: readonly TextRange[]): { page?: number; ranges: TextRange[] }[] {
+  const groups: { page?: number; ranges: TextRange[] }[] = [];
+  for (const range of ranges) {
+    const page = range.page ?? passage.page;
+    const last = groups.at(-1);
+    if (last && last.page === page) last.ranges.push(range);
+    else groups.push({ page, ranges: [range] });
+  }
+  return groups;
 }
 
 /** Scrolls so the passage drawn by `spans` sits in the middle of the view, or its top near the top if it is taller. */

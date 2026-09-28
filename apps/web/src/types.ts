@@ -25,7 +25,7 @@ export interface Passage {
   page?: number;
   /** Where the passage sits in its document's text items (its page's, for PDFs), in document order. */
   textRanges?: TextRange[];
-  /** Trail of headings the passage sits under, outermost first, joined by " > "; only set for Markdown. */
+  /** Trail of headings the passage sits under, outermost first, joined by " > "; only set for Markdown and PDFs. */
   heading?: string;
 }
 
@@ -37,6 +37,11 @@ export interface Passage {
  * - Plain text: always item 0, the whole file as read.
  */
 export interface TextRange {
+  /**
+   * PDF only: the page the item is on, which differs from the passage's page for a passage that runs on from one page
+   * to the next. Absent in results files exported before it was recorded, where every range is on the passage's page.
+   */
+  page?: number;
   item: number;
   start: number;
   end: number;
@@ -51,7 +56,7 @@ export interface ParsedDocument {
 
 export interface ParseFailure {
   path: string;
-  message: string;
+  error: unknown;
 }
 
 export interface ParseResult {
@@ -75,6 +80,8 @@ export interface PassageContext {
 }
 
 export const CONTEXT_PARAGRAPHS_MAX = 3;
+export const POSSIBLE_ABOVE_MIN = 0.05;
+export const POSSIBLE_ABOVE_MAX = 0.5;
 export const PASSAGE_MAX_CHARS_MIN = 100;
 export const PASSAGE_MAX_CHARS_MAX = 10_000;
 
@@ -86,8 +93,13 @@ export interface Settings {
   passageMaxChars: number;
   /** Paragraphs of the same document sent as context on each side of a passage; 0 sends none. */
   contextParagraphs: number;
-  /** Whether a Markdown passage's heading trail is sent as context. */
+  /** Whether a passage's heading trail is sent as context. */
   contextHeading: boolean;
+  /**
+   * A passage judged unrelated to a claim is shown as possibly supporting or refuting it when that stance's
+   * probability is at least this.
+   */
+  possibleAbove: number;
 }
 
 export interface ModelInfo {
@@ -95,11 +107,16 @@ export interface ModelInfo {
   description: string;
 }
 
-export interface StanceResult {
-  passageId: string;
+export interface ClaimStance {
   stance: Stance;
   confidence: number;
   probabilities: Record<Stance, number>;
+}
+
+export interface StanceResult {
+  passageId: string;
+  /** One per claim of the run, in the same order. */
+  stances: ClaimStance[];
   /** Versioned model ID that produced the answer, e.g. "jev-1.13.0". */
   model: string;
   usage: TokenUsage;
@@ -112,5 +129,5 @@ export interface TokenUsage {
 
 export interface PassageFailure {
   passageId: string;
-  message: string;
+  error: unknown;
 }

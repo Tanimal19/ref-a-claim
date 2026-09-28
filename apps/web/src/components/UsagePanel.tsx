@@ -1,3 +1,4 @@
+import { useMessages } from "../i18n/index.tsx";
 import type { TokenUsage } from "../types.ts";
 
 // jev-1.13 pricing from https://docs.typesafe.ai/models: input tokens only, output tokens are free.
@@ -15,28 +16,30 @@ interface Props {
 }
 
 export function UsagePanel({ run, session }: Props) {
+  const m = useMessages();
   return (
     <section className="usage-panel">
-      <span className="eyebrow">Usage</span>
-      <UsageBlock title="This analysis" usage={run ?? EMPTY_USAGE} />
-      <UsageBlock title="This session" usage={session} />
-      <p className="hint">
-        ${USD_PER_MILLION_INPUT_TOKENS} per 1M input tokens. Output tokens are free. Failed requests are not counted.
-      </p>
+      <span className="eyebrow">{m.usage.title}</span>
+      <UsageBlock title={m.usage.thisAnalysis} usage={run ?? EMPTY_USAGE} />
+      <UsageBlock title={m.usage.thisSession} usage={session} />
+      <p className="hint">{m.usage.pricing(USD_PER_MILLION_INPUT_TOKENS)}</p>
     </section>
   );
 }
 
 function UsageBlock({ title, usage }: { title: string; usage: TokenUsage }) {
+  const m = useMessages();
   return (
     <section className="usage-block">
       <h2>{title}</h2>
       <dl>
-        <dt>Input tokens</dt>
+        <dt>{m.usage.inputTokens}</dt>
         <dd>{usage.inputTokens.toLocaleString()}</dd>
-        <dt>Output tokens</dt>
-        <dd>{usage.outputTokens.toLocaleString()} (free)</dd>
-        <dt>Estimated cost</dt>
+        <dt>{m.usage.outputTokens}</dt>
+        <dd>
+          {usage.outputTokens.toLocaleString()} {m.usage.free}
+        </dd>
+        <dt>{m.usage.estimatedCost}</dt>
         <dd className="cost">{formatUsd((usage.inputTokens / 1_000_000) * USD_PER_MILLION_INPUT_TOKENS)}</dd>
       </dl>
     </section>

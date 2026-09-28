@@ -6,7 +6,7 @@
   --ink: #1b1b18;
   --ink-2: #55544e;
   --ink-3: #6f6d66;
-  --supports: #2e62b8;
+  --supports: #1f7a4d;
   --refutes: #c4541a;
   --unrelated: #cfccc2;
   --failed: #a36a00;
@@ -30,7 +30,7 @@
     --ink: #ecebe7;
     --ink-2: #b9b8b1;
     --ink-3: #97958e;
-    --supports: #7aa2e8;
+    --supports: #5cc98a;
     --refutes: #f08a4b;
     --unrelated: #4a4944;
     --failed: #e0a040;
@@ -53,6 +53,14 @@ body {
 }
 
 .refutes {
+  --stance: var(--refutes);
+}
+
+.possibly-supports {
+  --stance: var(--supports);
+}
+
+.possibly-refutes {
   --stance: var(--refutes);
 }
 
@@ -255,6 +263,9 @@ kbd {
 }
 
 .wordmark {
+  border: none;
+  background: none;
+  padding: 0;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -301,6 +312,51 @@ kbd {
   flex-shrink: 0;
 }
 
+.claim-switch {
+  max-height: calc(7 * 1.6em);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: normal;
+}
+
+.claim-option {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 1px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  color: var(--ink-2);
+}
+
+.claim-option:hover {
+  background: var(--ground);
+}
+
+.claim-option[aria-pressed="true"] {
+  background: var(--ground);
+  color: var(--ink);
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+.claim-number {
+  flex-shrink: 0;
+  min-width: 1.6em;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.claim-text {
+  min-width: 0;
+}
+
 .header-claim .link {
   flex-shrink: 0;
 }
@@ -328,6 +384,17 @@ kbd {
   align-items: center;
   justify-content: center;
   color: var(--ink-2);
+}
+
+a.icon-button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.language-toggle {
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .menu {
@@ -568,6 +635,10 @@ kbd {
   font-weight: 600;
 }
 
+.side-counts > .possible-count {
+  font-weight: 400;
+}
+
 .side-counts > .low-confidence-count {
   display: inline-flex;
   align-items: center;
@@ -595,6 +666,10 @@ kbd {
 
 .segment.pending {
   min-width: 0;
+}
+
+.segment:is(.possibly-supports, .possibly-refutes) {
+  background: color-mix(in srgb, var(--stance) 40%, var(--surface));
 }
 
 button.segment:hover {
@@ -772,6 +847,14 @@ button.segment:hover {
 
 :is(.textLayer, .text-document) .hl.low-confidence {
   background: color-mix(in srgb, var(--stance) 10%, transparent);
+}
+
+/* Possibly related passages: a fainter tint, told apart from low-confidence ones by a dashed underline. */
+:is(.textLayer, .text-document) .hl:is(.possibly-supports, .possibly-refutes) {
+  background: color-mix(in srgb, var(--stance) 7%, transparent);
+  text-decoration: underline dashed color-mix(in srgb, var(--stance) 70%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 :is(.textLayer, .text-document) .hl.hovered {
@@ -987,6 +1070,10 @@ button.segment:hover {
   cursor: default;
 }
 
+.passage-card:is(.possibly-supports, .possibly-refutes) {
+  border-left-style: dashed;
+}
+
 .passage-card.low-confidence {
   border-top-color: var(--low);
   border-right-color: var(--low);
@@ -1056,8 +1143,14 @@ button.segment:hover {
   color: var(--ink);
 }
 
-.scores .model {
-  margin-left: auto;
+.scores .possible {
+  color: var(--stance);
+}
+
+.passage-card .model {
+  margin: 0;
+  align-self: flex-end;
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 
@@ -1216,3 +1309,34 @@ button.segment:hover {
     margin-left: 0;
   }
 }
+
+/* Per-claim results in the passage card when a run has several claims */
+.claim-scores {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claim-scores li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.claim-scores-claim {
+  margin: 0;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ink-2);
+}
+
+.claim-scores-claim .claim-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+

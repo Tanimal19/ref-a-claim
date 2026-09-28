@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { useMessages } from "../i18n/index.tsx";
 import { readMarkdown } from "../parse/markdown.ts";
 import { highlightClass, type Highlight, type PassageStart } from "./highlights.ts";
 import { MarkdownContent } from "./MarkdownContent.tsx";
@@ -20,6 +21,7 @@ interface Segment {
 
 /** Shows a Markdown document rendered, or a plain-text one as written, with its passages' text items tinted. */
 export function TextDocument({ file, format, highlights, starts, onPainted }: Props) {
+  const m = useMessages();
   const [source, setSource] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -71,8 +73,8 @@ export function TextDocument({ file, format, highlights, starts, onPainted }: Pr
     if (source !== undefined) onPainted();
   }, [source, segmentsByItem, startsByItem, onPainted]);
 
-  if (error) return <p className="error document-status">The document could not be shown: {error}</p>;
-  if (source === undefined) return <p className="document-status">Loading…</p>;
+  if (error) return <p className="error document-status">{m.document.textError(error)}</p>;
+  if (source === undefined) return <p className="document-status">{m.document.loading}</p>;
 
   const renderItem = (item: number, text: string) =>
     itemContent(text, segmentsByItem.get(item) ?? NO_SEGMENTS, startsByItem.get(item) ?? NO_STARTS);

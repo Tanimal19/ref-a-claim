@@ -1,5 +1,6 @@
 import { TextLayer, type PDFDocumentProxy, type RenderTask } from "pdfjs-dist";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useMessages } from "../i18n/index.tsx";
 import { pageTextContent } from "../pdfjs.ts";
 import type { Category } from "../results.ts";
 import { highlightClass, type Highlight, type PassageStart } from "./highlights.ts";
@@ -39,6 +40,7 @@ interface Marker {
 export function PdfPage(props: Props) {
   const { pdf, pageNumber, scale, userUnit, width, height, root, highlights, passageStarts } = props;
   const { onPainted } = props;
+  const m = useMessages();
   const pageRef = useRef<HTMLDivElement>(null);
   const canvasHostRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ export function PdfPage(props: Props) {
           aria-hidden="true"
         />
         ))}
-      {error && <p className="pdf-page-error error">Page {pageNumber} could not be drawn: {error}</p>}
+      {error && <p className="pdf-page-error error">{m.document.pageError(pageNumber, error)}</p>}
     </div>
   );
 }

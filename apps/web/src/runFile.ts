@@ -1,6 +1,8 @@
+import { LocalizedError } from "./i18n/errors.ts";
 import {
   STANCES,
   documentFormat,
+  type ClaimStance,
   type DocumentFormat,
   type ParsedDocument,
   type Passage,
@@ -19,11 +21,16 @@ const MEDIA_TYPES: Record<DocumentFormat, string> = {
 
 export type FinishedStatus = "done" | "cancelled" | "failed";
 
-/** An exported analysis: everything needed to show its results again without re-reading or re-running. */
+/**
+ * An exported analysis: everything needed to show its results again without re-reading or re-running.
+ *
+ * Files exported before claims could be split have a single `claim` instead of `claims`, and each result has its one
+ * stance's fields (`stance`, `confidence`, `probabilities`) in place of `stances`; opening one reads it as one claim.
+ */
 export interface RunFile {
   format: typeof FORMAT;
   exportedAt: string;
-  claim: string;
+  claims: string[];
   status: FinishedStatus;
   error?: string;
   documents: RunFileDocument[];
@@ -38,7 +45,7 @@ export interface RunFileDocument extends ParsedDocument {
 
 /** An opened results file, with each document's original file keyed by document path. */
 export interface OpenedRun {
-  claim: string;
+  claims: string[];
   status: FinishedStatus;
   error?: string;
   documents: ParsedDocument[];
@@ -47,7 +54,7 @@ export interface OpenedRun {
 }
 
 export async function createRunFile(run: {
-  claim: string;
+  claims: string[];
   status: FinishedStatus;
   error?: string;
   documents: ParsedDocument[];
@@ -58,14 +65,14 @@ export async function createRunFile(run: {
   const documents = await Promise.all(
     run.documents.map(async (document) => {
       const file = run.files.get(document.path);
-      if (!file) throw new Error(`The original file of ${document.path} is no longer available.`);
+      if (!file) throw new LocalizedError((m) => m.errors.originalFileUnavailable(document.path));
       return { ...document, source: toBase64(new Uint8Array(await file.arrayBuffer())) };
     }),
   );
   return {
     format: FORMAT,
     exportedAt: new Date().toISOString(),
-    claim: run.claim,
+    claims: run.claims,
     status: run.status,
     ...(run.error === undefined ? {} : { error: run.error }),
     documents,
@@ -84,23 +91,24 @@ export function downloadRunFile(runFile: RunFile): void {
   setTimeout(() => URL.revokeObjectURL(url));
 }
 
-/** Parses and validates an exported file, throwing an `Error` with a user-facing message if it is unusable. */
+/** Parses and validates an exported file, throwing a `LocalizedError` if it is unusable. */
 export async function readRunFile(file: File): Promise<OpenedRun> {
   let value: unknown;
   try {
     value = JSON.parse(await file.text());
   } catch {
-    throw new Error(`${file.name} is not a valid JSON file.`);
+    throw new LocalizedError((m) => m.errors.notJson(file.name));
   }
   if (!isRecord(value) || value.format !== FORMAT) {
-    throw new Error(`${file.name} is not a ref-a-claim results file.`);
+    throw new LocalizedError((m) => m.errors.notResultsFile(file.name));
   }
 
-  const malformed = new Error(`${file.name} is malformed and cannot be opened.`);
-  const { exportedAt, claim, status, error, documents, outcomes } = value;
+  const malformed = new LocalizedError((m) => m.errors.malformedResultsFile(file.name));
+  const { exportedAt, status, error, documents, outcomes } = value;
+  const claims = claimsOf(value);
   if (
     typeof exportedAt !== "string" ||
-    typeof claim !== "string" ||
+    claims === undefined ||
     !isFinishedStatus(status) ||
     (error !== undefined && typeof error !== "string") ||
     !Array.isArray(documents) ||
@@ -122,9 +130,11 @@ export async function readRunFile(file: File): Promise<OpenedRun> {
   ) {
     throw malformed;
   }
-  for (const [passageId, outcome] of Object.entries(outcomes)) {
-    if (!passageIds.has(passageId) || !isOutcome(outcome)) throw malformed;
-    if (outcome.kind === "result" && outcome.result.passageId !== passageId) throw malformed;
+  const openedOutcomes: Record<string, Outcome> = {};
+  for (const [passageId, value] of Object.entries(outcomes)) {
+    const outcome = passageIds.has(passageId) ? outcomeOf(value, claims.length) : undefined;
+    if (!outcome || (outcome.kind === "result" && outcome.result.passageId !== passageId)) throw malformed;
+    openedOutcomes[passageId] = outcome;
   }
 
   const files = new Map<string, File>();
@@ -141,11 +151,11 @@ export async function readRunFile(file: File): Promise<OpenedRun> {
   }
 
   return {
-    claim,
+    claims,
     status,
     ...(error === undefined ? {} : { error }),
     documents: documents.map(({ source: _, ...document }) => document),
-    outcomes: outcomes as Record<string, Outcome>,
+    outcomes: openedOutcomes,
     files,
   };
 }
@@ -204,6 +214,7 @@ function isPassage(value: unknown): value is Passage {
 function isTextRange(value: unknown): value is TextRange {
   return (
     isRecord(value) &&
+    (value.page === undefined || (Number.isSafeInteger(value.page) && (value.page as number) >= 1)) &&
     Number.isSafeInteger(value.item) &&
     Number.isSafeInteger(value.start) &&
     Number.isSafeInteger(value.end) &&
@@ -213,23 +224,48 @@ function isTextRange(value: unknown): value is TextRange {
   );
 }
 
-function isOutcome(value: unknown): value is Outcome {
-  if (!isRecord(value)) return false;
-  if (value.kind === "failure") return typeof value.message === "string";
-  return value.kind === "result" && isStanceResult(value.result);
+function claimsOf(file: Record<string, unknown>): string[] | undefined {
+  const { claims, claim } = file;
+  if (claims === undefined) return typeof claim === "string" ? [claim] : undefined;
+  return Array.isArray(claims) && claims.length > 0 && claims.every((c) => typeof c === "string") ? claims : undefined;
 }
 
-function isStanceResult(value: unknown): value is StanceResult {
+/** A valid outcome for a run of `claimCount` claims, with an older file's single stance read as one claim's. */
+function outcomeOf(value: unknown, claimCount: number): Outcome | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.kind === "failure") {
+    return typeof value.message === "string" ? { kind: "failure", message: value.message } : undefined;
+  }
+  if (value.kind !== "result" || !isRecord(value.result)) return undefined;
+  const { passageId, stances, model, usage, ...legacy } = value.result;
+  const read = stances === undefined && claimCount === 1 ? (isClaimStance(legacy) ? [legacy] : undefined) : stances;
+  if (
+    typeof passageId !== "string" ||
+    !Array.isArray(read) ||
+    read.length !== claimCount ||
+    !read.every(isClaimStance) ||
+    typeof model !== "string" ||
+    !isRecord(usage) ||
+    !isFiniteNumber(usage.inputTokens) ||
+    !isFiniteNumber(usage.outputTokens)
+  ) {
+    return undefined;
+  }
+  const result: StanceResult = {
+    passageId,
+    stances: read.map(({ stance, confidence, probabilities }) => ({ stance, confidence, probabilities })),
+    model,
+    usage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
+  };
+  return { kind: "result", result };
+}
+
+function isClaimStance(value: unknown): value is ClaimStance {
   return (
     isRecord(value) &&
-    typeof value.passageId === "string" &&
     (STANCES as readonly unknown[]).includes(value.stance) &&
     isFiniteNumber(value.confidence) &&
     isRecord(value.probabilities) &&
-    STANCES.every((stance) => isFiniteNumber((value.probabilities as Record<string, unknown>)[stance])) &&
-    typeof value.model === "string" &&
-    isRecord(value.usage) &&
-    isFiniteNumber(value.usage.inputTokens) &&
-    isFiniteNumber(value.usage.outputTokens)
+    STANCES.every((stance) => isFiniteNumber((value.probabilities as Record<string, unknown>)[stance]))
   );
 }

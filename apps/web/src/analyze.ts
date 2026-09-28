@@ -1,9 +1,9 @@
 import { AuthenticationError, PermissionDeniedError } from "@typesafe-ai/sdk";
+import { LocalizedError } from "./i18n/errors.ts";
 import { stanceClassifierFor } from "./jev.ts";
 import type { AnalyzePassage, ParsedDocument, PassageFailure, Passage, Settings, StanceResult } from "./types.ts";
 
 const CONCURRENCY = 8;
-const NO_API_KEY = "No TypeSafe API key is configured. Add one in Settings.";
 
 export interface AnalyzeHandlers {
   onResult: (result: StanceResult) => void;
@@ -11,19 +11,18 @@ export interface AnalyzeHandlers {
 }
 
 /**
- * Classifies every passage against `claim`, reporting each outcome as it arrives. Resolves once all passages have an
- * outcome; rejects when `signal` aborts, or with the first error that would fail every passage (a rejected API key).
+ * Classifies every passage against each of `claims`, reporting each outcome as it arrives. Resolves once all passages
+ * have an outcome; rejects when `signal` aborts, or with the first error that would fail every passage (a rejected API key).
  */
 export async function analyze(
-  claim: string,
+  claims: readonly string[],
   documents: readonly ParsedDocument[],
   settings: Settings,
   signal: AbortSignal,
   handlers: AnalyzeHandlers,
 ): Promise<void> {
-  if (settings.apiKey === undefined) throw new Error(NO_API_KEY);
+  if (settings.apiKey === undefined) throw new LocalizedError((m) => m.errors.noApiKey);
   const classify = stanceClassifierFor(settings.apiKey, settings.model || undefined);
-  const trimmedClaim = claim.trim();
   const passages = documents.flatMap((doc) => doc.passages.map((_, i) => withContext(doc.passages, i, settings)));
 
   // Stops the remaining requests on a fatal error without it looking like the user cancelled.
@@ -33,7 +32,7 @@ export async function analyze(
 
   await forEachConcurrent(passages, CONCURRENCY, stop, async (passage) => {
     try {
-      handlers.onResult(await classify(trimmedClaim, passage, stop));
+      handlers.onResult(await classify(claims, passage, stop));
     } catch (error) {
       if (stop.aborted) return;
       if (error instanceof AuthenticationError || error instanceof PermissionDeniedError) {
@@ -41,7 +40,7 @@ export async function analyze(
         fatal.abort();
         return;
       }
-      handlers.onFailure({ passageId: passage.id, message: error instanceof Error ? error.message : String(error) });
+      handlers.onFailure({ passageId: passage.id, error });
     }
   });
   signal.throwIfAborted();

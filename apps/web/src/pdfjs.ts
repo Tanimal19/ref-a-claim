@@ -8,6 +8,7 @@ import {
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 export type TextContent = Awaited<ReturnType<PDFPageProxy["getTextContent"]>>;
+export type TextItem = Extract<TextContent["items"][number], { str: string }>;
 
 // Copied into the build by vite.config.ts. Without the CMaps, text in CJK fonts that rely on them comes out empty or garbled.
 const assetRoot = new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href);
@@ -33,6 +34,6 @@ export function pageTextContent(page: PDFPageProxy): Promise<TextContent> {
 }
 
 /** The items that carry text, which is what `TextRange.item` counts. */
-export function textItems(content: TextContent): { str: string; hasEOL: boolean }[] {
-  return content.items.filter((item) => "str" in item);
+export function textItems(content: TextContent): TextItem[] {
+  return content.items.filter((item): item is TextItem => "str" in item);
 }

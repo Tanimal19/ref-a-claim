@@ -1,6 +1,6 @@
 import type { TextRange } from "../types.ts";
 
-const CJK_CHAR = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿＀-￯]/u;
+export const CJK_CHAR = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}　-〿＀-￯]/u;
 
 const sentenceSegmenter = new Intl.Segmenter(undefined, { granularity: "sentence" });
 
@@ -27,8 +27,11 @@ export function joinTraced(parts: readonly TracedText[], separator: string): Tra
   return result;
 }
 
-/** Where the source's code unit at an offset lies: its text item and its position in that item, if it is in one. */
-export type Locate = (offset: number) => { item: number; char: number } | undefined;
+/**
+ * Where the source's code unit at an offset lies: its text item and its position in that item, if it is in one, and
+ * for a source that runs over several pages, the page of that item.
+ */
+export type Locate = (offset: number) => { page?: number; item: number; char: number } | undefined;
 
 /**
  * A passage is one stretch of its source, so within an item its range runs from its first to its last code unit,
@@ -40,10 +43,10 @@ export function rangesOf(offsets: readonly number[], locate: Locate): TextRange[
     if (offset < 0) continue;
     const location = locate(offset);
     if (!location) continue;
-    const { item, char } = location;
+    const { page, item, char } = location;
     const last = ranges.at(-1);
-    if (last && last.item === item && char >= last.end) last.end = char + 1;
-    else ranges.push({ item, start: char, end: char + 1 });
+    if (last && last.page === page && last.item === item && char >= last.end) last.end = char + 1;
+    else ranges.push({ ...(page === undefined ? {} : { page }), item, start: char, end: char + 1 });
   }
   return ranges;
 }

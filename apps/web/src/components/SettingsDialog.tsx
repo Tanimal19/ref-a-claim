@@ -1,10 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { describeError, useMessages } from "../i18n/index.tsx";
 import { listModels } from "../jev.ts";
 import { DEFAULT_MODEL } from "../settings.ts";
 import {
   CONTEXT_PARAGRAPHS_MAX,
   PASSAGE_MAX_CHARS_MAX,
   PASSAGE_MAX_CHARS_MIN,
+  POSSIBLE_ABOVE_MAX,
+  POSSIBLE_ABOVE_MIN,
   type ModelInfo,
   type Settings,
 } from "../types.ts";
@@ -37,21 +40,23 @@ export function SettingsDialog(props: Props) {
 }
 
 function SettingsForm({ settings, documentCount, resplittableCount, onClose, onSaved }: Props) {
+  const m = useMessages();
   const [apiKey, setApiKey] = useState("");
   const [removeKey, setRemoveKey] = useState(false);
   const [model, setModel] = useState(settings.model);
   const [passageMaxChars, setPassageMaxChars] = useState(String(settings.passageMaxChars));
   const [contextParagraphs, setContextParagraphs] = useState(settings.contextParagraphs);
   const [contextHeading, setContextHeading] = useState(settings.contextHeading);
+  const [possibleAbove, setPossibleAbove] = useState(String(settings.possibleAbove));
   const [models, setModels] = useState<ModelInfo[]>();
-  const [modelsError, setModelsError] = useState<string>();
+  const [modelsError, setModelsError] = useState<unknown>();
   const modelListId = useId();
 
   useEffect(() => {
     if (settings.apiKey === undefined) return;
     const controller = new AbortController();
     listModels(settings.apiKey, controller.signal).then(setModels, (reason: unknown) => {
-      if (!controller.signal.aborted) setModelsError(reason instanceof Error ? reason.message : String(reason));
+      if (!controller.signal.aborted) setModelsError(reason);
     });
     return () => controller.abort();
   }, [settings.apiKey]);
@@ -60,10 +65,14 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
   const maxCharsValid = Number.isInteger(maxChars) && maxChars >= PASSAGE_MAX_CHARS_MIN && maxChars <= PASSAGE_MAX_CHARS_MAX;
   const maxCharsChanged = maxCharsValid && maxChars !== settings.passageMaxChars;
   const resplits = maxCharsChanged && resplittableCount > 0;
+  const threshold = Number(possibleAbove);
+  const thresholdValid =
+    possibleAbove.trim() !== "" && threshold >= POSSIBLE_ABOVE_MIN && threshold <= POSSIBLE_ABOVE_MAX;
+  const valid = maxCharsValid && thresholdValid;
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!maxCharsValid) return;
+    if (!valid) return;
     const nextKey = removeKey ? undefined : apiKey.trim() || settings.apiKey;
     onSaved({
       ...(nextKey === undefined ? {} : { apiKey: nextKey }),
@@ -71,47 +80,45 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
       passageMaxChars: maxChars,
       contextParagraphs,
       contextHeading,
+      possibleAbove: threshold,
     });
   }
 
   return (
     <form className="dialog-body" onSubmit={submit}>
-      <h2 id="settings-title">Settings</h2>
+      <h2 id="settings-title">{m.settings.title}</h2>
 
       <fieldset>
-        <legend>TypeSafe API</legend>
+        <legend>{m.settings.api}</legend>
         <label className="field">
-          <span className="field-label">API key</span>
+          <span className="field-label">{m.settings.apiKey}</span>
           <input
             type="password"
             autoComplete="off"
-            placeholder={settings.apiKey === undefined ? "Paste your key" : "Enter a new key to replace it"}
+            placeholder={settings.apiKey === undefined ? m.settings.apiKeyPlaceholder : m.settings.apiKeyReplacePlaceholder}
             value={apiKey}
             disabled={removeKey}
             onChange={(e) => setApiKey(e.target.value)}
           />
         </label>
         <p className="field-hint">
-          {settings.apiKey === undefined && "No key yet. Get one at console.typesafe.ai/keys."}
+          {settings.apiKey === undefined && m.settings.noKey}
           {settings.apiKey !== undefined && (
             <>
-              {removeKey ? "The saved key will be removed" : <>Using the saved key (…{settings.apiKey.slice(-4)}).</>}{" "}
+              {removeKey ? m.settings.keyWillBeRemoved : m.settings.usingSavedKey(settings.apiKey.slice(-4))}{" "}
               <button type="button" className="link" onClick={() => setRemoveKey(!removeKey)}>
-                {removeKey ? "Keep it" : "Remove"}
+                {removeKey ? m.settings.keepKey : m.settings.removeKey}
               </button>
             </>
           )}
         </p>
-        <p className="field-hint">
-          Your key stays in this browser tab and is cleared when the tab closes. Requests go to TypeSafe through this
-          site’s address, which relays them without keeping anything.
-        </p>
+        <p className="field-hint">{m.settings.keyStorage}</p>
 
         <label className="field">
-          <span className="field-label">Model</span>
+          <span className="field-label">{m.settings.model}</span>
           <input
             list={modelListId}
-            placeholder={`Default: ${DEFAULT_MODEL}`}
+            placeholder={m.settings.modelPlaceholder(DEFAULT_MODEL)}
             value={model}
             onChange={(e) => setModel(e.target.value)}
           />
@@ -124,15 +131,17 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
           </datalist>
         </label>
         <p className="field-hint">
-          Leave empty to use {DEFAULT_MODEL}.
-          {modelsError && <span className="error"> Couldn’t load the model list: {modelsError}</span>}
+          {m.settings.modelHint(DEFAULT_MODEL)}
+          {modelsError !== undefined && (
+            <span className="error"> {m.settings.modelsError(describeError(modelsError, m))}</span>
+          )}
         </p>
       </fieldset>
 
       <fieldset>
-        <legend>Paragraphs</legend>
+        <legend>{m.settings.paragraphs}</legend>
         <label className="field">
-          <span className="field-label">Max length</span>
+          <span className="field-label">{m.settings.maxLength}</span>
           <span className="input-with-unit">
             <input
               type="number"
@@ -143,48 +152,57 @@ function SettingsForm({ settings, documentCount, resplittableCount, onClose, onS
               value={passageMaxChars}
               onChange={(e) => setPassageMaxChars(e.target.value)}
             />
-            <span className="muted">characters</span>
+            <span className="muted">{m.settings.characters}</span>
           </span>
         </label>
-        <p className="field-hint">Longer paragraphs are split on sentence boundaries when documents are read.</p>
+        <p className="field-hint">{m.settings.maxLengthHint}</p>
         {resplits && (
-          <p className="notice">
-            Saving re-reads {resplittableCount} loaded document{resplittableCount === 1 ? "" : "s"} with the new length
-            and clears the current results.
-            {documentCount > resplittableCount &&
-              ` ${documentCount - resplittableCount} opened from a results file will keep their current split.`}
-          </p>
+          <p className="notice">{m.settings.resplitNotice(resplittableCount, documentCount - resplittableCount)}</p>
         )}
       </fieldset>
 
       <fieldset>
-        <legend>Context sent with each paragraph</legend>
+        <legend>{m.settings.context}</legend>
         <label className="field">
-          <span className="field-label">Neighbouring paragraphs</span>
+          <span className="field-label">{m.settings.neighbours}</span>
           <select value={contextParagraphs} onChange={(e) => setContextParagraphs(Number(e.target.value))}>
             {Array.from({ length: CONTEXT_PARAGRAPHS_MAX + 1 }, (_, n) => (
               <option key={n} value={n}>
-                {n === 0 ? "None" : `${n} before and after`}
+                {n === 0 ? m.settings.noNeighbours : m.settings.neighboursEachSide(n)}
               </option>
             ))}
           </select>
         </label>
         <label className="check">
           <input type="checkbox" checked={contextHeading} onChange={(e) => setContextHeading(e.target.checked)} />
-          Include the section heading (Markdown)
+          {m.settings.includeHeading}
         </label>
-        <p className="field-hint">
-          The model reads context only to understand the paragraph; the stance is judged on the paragraph alone. More
-          context costs more input tokens. Applies to the next analysis.
-        </p>
+        <p className="field-hint">{m.settings.contextHint}</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>{m.settings.results}</legend>
+        <label className="field">
+          <span className="field-label">{m.settings.possibleAbove}</span>
+          <input
+            type="number"
+            min={POSSIBLE_ABOVE_MIN}
+            max={POSSIBLE_ABOVE_MAX}
+            step={0.05}
+            required
+            value={possibleAbove}
+            onChange={(e) => setPossibleAbove(e.target.value)}
+          />
+        </label>
+        <p className="field-hint">{m.settings.possibleAboveHint(POSSIBLE_ABOVE_MIN, POSSIBLE_ABOVE_MAX)}</p>
       </fieldset>
 
       <div className="dialog-actions">
         <button type="button" onClick={onClose}>
-          Cancel
+          {m.settings.cancel}
         </button>
-        <button type="submit" className="primary" disabled={!maxCharsValid}>
-          {resplits ? "Save and re-read" : "Save"}
+        <button type="submit" className="primary" disabled={!valid}>
+          {resplits ? m.settings.saveAndReread : m.settings.save}
         </button>
       </div>
     </form>

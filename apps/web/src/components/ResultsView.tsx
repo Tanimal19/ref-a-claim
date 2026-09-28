@@ -1,10 +1,13 @@
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useMessages } from "../i18n/index.tsx";
 import type { ParsedDocument, Passage } from "../types.ts";
-import { outcomeCategory, paperStats, sumTallies, type Category, type Outcome, type PaperStats } from "../results.ts";
+import { judge, paperStats, sumTallies, type Category, type Outcome, type PaperStats, type Reading } from "../results.ts";
 import { DocumentView } from "./DocumentView.tsx";
 import { PaperNav, type PaperOrder } from "./PaperNav.tsx";
 
 interface Props {
+  claims: readonly string[];
+  reading: Reading;
   documents: ParsedDocument[];
   outcomes: ReadonlyMap<string, Outcome>;
   /** The files the documents were read from, by document path. */
@@ -14,11 +17,16 @@ interface Props {
   onDocumentChange: (documentId: string) => void;
 }
 
-export function ResultsView({ documents, outcomes, files, documentId, onDocumentChange }: Props) {
+export function ResultsView({ claims, reading, documents, outcomes, files, documentId, onDocumentChange }: Props) {
+  const m = useMessages();
   const [paperOrder, setPaperOrder] = useState<PaperOrder>("document");
   const [activeId, setActiveId] = useState<string>();
 
-  const stats = useMemo(() => paperStats(documents, outcomes), [documents, outcomes]);
+  const { view, possibleAbove } = reading;
+  const stats = useMemo(
+    () => paperStats(documents, outcomes, { view, possibleAbove }),
+    [documents, outcomes, view, possibleAbove],
+  );
   const totals = useMemo(() => sumTallies(stats), [stats]);
   const papers = useMemo(
     () => (paperOrder === "document" ? stats : stats.toSorted((a, b) => share(b, paperOrder) - share(a, paperOrder))),
@@ -63,7 +71,7 @@ export function ResultsView({ documents, outcomes, files, documentId, onDocument
 
   function categoryOf(passage: Passage): Category | undefined {
     const outcome = outcomes.get(passage.id);
-    return outcome && outcomeCategory(outcome);
+    return outcome && judge(outcome, reading).category;
   }
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
@@ -105,25 +113,27 @@ export function ResultsView({ documents, outcomes, files, documentId, onDocument
             <h1 title={current.document.path}>{current.document.path}</h1>
             <span className="spacer" />
             <button type="button" disabled={!prevPaper} onClick={() => prevPaper && selectPaper(prevPaper)}>
-              ← Prev paper
+              {m.results.prevPaper}
             </button>
             <button type="button" disabled={!nextPaper} onClick={() => nextPaper && selectPaper(nextPaper)}>
-              Next paper →
+              {m.results.nextPaper}
             </button>
           </div>
           <DocumentView
             key={current.document.id}
             document={current.document}
             file={files.get(current.document.path)}
+            claims={claims}
+            reading={reading}
             outcomes={outcomes}
             activeId={activeId}
           />
           <footer className="shortcuts">
             <span>
-              <kbd>↑</kbd> <kbd>↓</kbd> tinted paragraph
+              <kbd>↑</kbd> <kbd>↓</kbd> {m.results.tintedParagraphShortcut}
             </span>
             <span>
-              <kbd>←</kbd> <kbd>→</kbd> paper
+              <kbd>←</kbd> <kbd>→</kbd> {m.results.paperShortcut}
             </span>
           </footer>
         </section>
