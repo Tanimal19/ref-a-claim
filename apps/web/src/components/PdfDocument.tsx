@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useMessages } from "../i18n/index.tsx";
 import { loadPdf } from "../pdfjs.ts";
 import type { Highlight, PassageStart } from "./highlights.ts";
 import { PdfPage } from "./PdfPage.tsx";
@@ -25,6 +26,7 @@ const PAGE_GUTTER = 32;
 const MAX_SCALE = 2;
 
 export function PdfDocument({ file, scroller, highlights, starts, onLayout, onPainted }: Props) {
+  const m = useMessages();
   const [pdf, setPdf] = useState<LoadedPdf>();
   const [error, setError] = useState<string>();
   const [availableWidth, setAvailableWidth] = useState(0);
@@ -75,8 +77,8 @@ export function PdfDocument({ file, scroller, highlights, starts, onLayout, onPa
   const highlightsByPage = useMemo(() => byPage(highlights), [highlights]);
   const startsByPage = useMemo(() => byPage(starts), [starts]);
 
-  if (error) return <p className="error document-status">The paper could not be shown: {error}</p>;
-  if (!pdf) return <p className="document-status">Loading…</p>;
+  if (error) return <p className="error document-status">{m.document.paperError(error)}</p>;
+  if (!pdf) return <p className="document-status">{m.document.loading}</p>;
   if (scale === 0) return null;
   return (
     <div className="pdf-pages">

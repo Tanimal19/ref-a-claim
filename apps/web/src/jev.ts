@@ -1,4 +1,5 @@
 import { TypeSafeClient, choice, type ChoiceQuestion, type ChoiceResponse } from "@typesafe-ai/sdk";
+import { LocalizedError } from "./i18n/errors.ts";
 import type { AnalyzePassage, ClaimStance, ModelInfo, StanceResult } from "./types.ts";
 
 // Same-origin path proxied to https://api.typesafe.ai (vite.config.ts in dev, vercel.json in production), because
@@ -95,7 +96,7 @@ function createStanceClassifier(apiKey: string, model: string | undefined) {
 }
 
 function claimStance(answer: ChoiceResponse<typeof STANCE_CRITERIA> | undefined): ClaimStance {
-  if (!answer) throw new Error("The model's response is missing an answer for one of the claims.");
+  if (!answer) throw new LocalizedError((m) => m.errors.missingAnswer);
   const { choice: stance, confidence, probabilities } = answer;
   return {
     stance,

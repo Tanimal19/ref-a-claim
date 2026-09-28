@@ -392,6 +392,11 @@ a.icon-button {
   border-radius: 6px;
 }
 
+.language-toggle {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .menu {
   position: fixed;
   inset: auto;

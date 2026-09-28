@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useMessages } from "../i18n/index.tsx";
 import { judge, type Outcome, type Reading } from "../results.ts";
 import { documentFormat, type ParsedDocument, type Passage, type TextRange } from "../types.ts";
 import type { Highlight, PassageStart } from "./highlights.ts";
@@ -20,6 +21,7 @@ interface Props {
 
 /** Shows the original document with each analyzed passage tinted by its stance; unrelated passages stay untinted. */
 export function DocumentView({ document, file, claims, reading, outcomes, activeId }: Props) {
+  const m = useMessages();
   const { view, possibleAbove } = reading;
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string>();
@@ -148,9 +150,9 @@ export function DocumentView({ document, file, claims, reading, outcomes, active
         onMouseLeave={() => setHoveredId(undefined)}
       >
         {!file ? (
-          <p className="document-status">The original file of this paper is not available.</p>
+          <p className="document-status">{m.document.fileUnavailable}</p>
         ) : format === "pdf" ? (
-          <Suspense fallback={<p className="document-status">Loading…</p>}>
+          <Suspense fallback={<p className="document-status">{m.document.loading}</p>}>
             <PdfDocument
               file={file}
               scroller={scroller}
@@ -163,7 +165,7 @@ export function DocumentView({ document, file, claims, reading, outcomes, active
         ) : format ? (
           <TextDocument file={file} format={format} highlights={highlights} starts={starts} onPainted={handlePainted} />
         ) : (
-          <p className="error document-status">This type of file cannot be shown.</p>
+          <p className="error document-status">{m.document.unsupported}</p>
         )}
       </div>
       {cardPassage && cardOutcome && (

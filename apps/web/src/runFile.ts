@@ -1,3 +1,4 @@
+import { LocalizedError } from "./i18n/errors.ts";
 import {
   STANCES,
   documentFormat,
@@ -64,7 +65,7 @@ export async function createRunFile(run: {
   const documents = await Promise.all(
     run.documents.map(async (document) => {
       const file = run.files.get(document.path);
-      if (!file) throw new Error(`The original file of ${document.path} is no longer available.`);
+      if (!file) throw new LocalizedError((m) => m.errors.originalFileUnavailable(document.path));
       return { ...document, source: toBase64(new Uint8Array(await file.arrayBuffer())) };
     }),
   );
@@ -90,19 +91,19 @@ export function downloadRunFile(runFile: RunFile): void {
   setTimeout(() => URL.revokeObjectURL(url));
 }
 
-/** Parses and validates an exported file, throwing an `Error` with a user-facing message if it is unusable. */
+/** Parses and validates an exported file, throwing a `LocalizedError` if it is unusable. */
 export async function readRunFile(file: File): Promise<OpenedRun> {
   let value: unknown;
   try {
     value = JSON.parse(await file.text());
   } catch {
-    throw new Error(`${file.name} is not a valid JSON file.`);
+    throw new LocalizedError((m) => m.errors.notJson(file.name));
   }
   if (!isRecord(value) || value.format !== FORMAT) {
-    throw new Error(`${file.name} is not a ref-a-claim results file.`);
+    throw new LocalizedError((m) => m.errors.notResultsFile(file.name));
   }
 
-  const malformed = new Error(`${file.name} is malformed and cannot be opened.`);
+  const malformed = new LocalizedError((m) => m.errors.malformedResultsFile(file.name));
   const { exportedAt, status, error, documents, outcomes } = value;
   const claims = claimsOf(value);
   if (

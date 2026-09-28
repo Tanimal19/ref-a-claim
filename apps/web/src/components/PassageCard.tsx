@@ -1,5 +1,6 @@
 import { STANCES, type ClaimStance, type Passage } from "../types.ts";
-import { CATEGORY_LABELS, judge, type Category, type Judgement, type Outcome, type Reading } from "../results.ts";
+import { useMessages } from "../i18n/index.tsx";
+import { judge, type Category, type Judgement, type Outcome, type Reading } from "../results.ts";
 
 interface Props {
   passage: Passage;
@@ -9,19 +10,21 @@ interface Props {
 }
 
 export function PassageCard({ passage, outcome, claims, reading }: Props) {
+  const m = useMessages();
   const judgement = judge(outcome, reading);
   const { category, lowConfidence } = judgement;
   return (
     <section
       className={`passage-card ${category}${lowConfidence ? " low-confidence" : ""}`}
-      aria-label="Paragraph result"
+      aria-label={m.passage.label}
     >
       <div className="passage-card-header">
-        <span className="stance-label">{CATEGORY_LABELS[category]}</span>
+        <span className="stance-label">{m.categories[category]}</span>
         <ConfidenceBadge judgement={judgement} />
         <span className="spacer" />
         <span className="passage-card-where">
-          {passage.page !== undefined && <>p. {passage.page} · </>}¶ {passage.index + 1}
+          {passage.page !== undefined && <>{m.passage.page(passage.page)} · </>}
+          {m.passage.paragraph(passage.index + 1)}
         </span>
       </div>
       {outcome.kind === "result" ? (
@@ -58,6 +61,7 @@ export function PassageCard({ passage, outcome, claims, reading }: Props) {
  * stance of a possibly related passage tinted but not bold.
  */
 function Scores({ stance, category }: { stance: ClaimStance | undefined; category: Category }) {
+  const m = useMessages();
   if (!stance) return null;
   const possible =
     category === "possibly-supports" ? "supports" : category === "possibly-refutes" ? "refutes" : undefined;
@@ -65,7 +69,7 @@ function Scores({ stance, category }: { stance: ClaimStance | undefined; categor
     <p className="scores">
       {STANCES.map((s) => (
         <span key={s} className={s === stance.stance ? `chosen ${s}` : s === possible ? `possible ${s}` : undefined}>
-          {CATEGORY_LABELS[s]} {stance.probabilities[s].toFixed(2)}
+          {m.categories[s]} {stance.probabilities[s].toFixed(2)}
         </span>
       ))}
     </p>
@@ -75,10 +79,11 @@ function Scores({ stance, category }: { stance: ClaimStance | undefined; categor
 /** Shows the confidence of the model's choice; below the threshold it becomes the highlighted low-confidence tag. */
 function ConfidenceBadge({ judgement }: { judgement: Judgement }) {
   const { confidence, lowConfidence } = judgement;
+  const m = useMessages();
   if (confidence === undefined) return null;
   return (
     <span className={lowConfidence ? "confidence low-confidence-tag" : "confidence"}>
-      {lowConfidence ? "Low confidence" : "Confidence"} {confidence.toFixed(2)}
+      {lowConfidence ? m.passage.lowConfidence : m.passage.confidence} {confidence.toFixed(2)}
     </span>
   );
 }

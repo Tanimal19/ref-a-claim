@@ -5,6 +5,7 @@ import { DocumentPicker } from "./components/DocumentPicker.tsx";
 import { ResultsView } from "./components/ResultsView.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { EMPTY_USAGE, UsagePanel, addUsage } from "./components/UsagePanel.tsx";
+import { describeError, useMessages } from "./i18n/index.tsx";
 import { parseDocuments } from "./parse/index.ts";
 import type { ClaimView, Outcome, Reading } from "./results.ts";
 import { createRunFile, downloadRunFile, readRunFile } from "./runFile.ts";
@@ -15,17 +16,18 @@ interface Run {
   claims: string[];
   total: number;
   status: "running" | "done" | "cancelled" | "failed";
-  error?: string;
+  error?: unknown;
 }
 
 export function App() {
+  const m = useMessages();
   const [claim, setClaim] = useState("");
   const [documents, setDocuments] = useState<ParsedDocument[]>([]);
   // The source files by document path: shown in the results, embedded in exported results, and read again when the
   // paragraph length changes.
   const [sourceFiles, setSourceFiles] = useState<ReadonlyMap<string, File>>(new Map());
   const [parseFailures, setParseFailures] = useState<ParseFailure[]>([]);
-  const [readError, setReadError] = useState<string>();
+  const [readError, setReadError] = useState<unknown>();
   const [reading, setReading] = useState(false);
   const [run, setRun] = useState<Run>();
   const [outcomes, setOutcomes] = useState<ReadonlyMap<string, Outcome>>(new Map());
@@ -33,7 +35,7 @@ export function App() {
   const [claimView, setClaimView] = useState<ClaimView>("all");
   const [view, setView] = useState<"setup" | "results">("setup");
   const [sessionUsage, setSessionUsage] = useState<TokenUsage>(EMPTY_USAGE);
-  const [resultsFileError, setResultsFileError] = useState<string>();
+  const [resultsFileError, setResultsFileError] = useState<unknown>();
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const abortRef = useRef<AbortController>(null);
@@ -77,7 +79,7 @@ export function App() {
       setParseFailures(parsed.failures);
       resetResults();
     } catch (error) {
-      setReadError(error instanceof Error ? error.message : String(error));
+      setReadError(error);
     } finally {
       setReading(false);
     }
@@ -122,7 +124,7 @@ export function App() {
           record(result.passageId, { kind: "result", result });
           setSessionUsage((prev) => addUsage(prev, result.usage));
         },
-        onFailure: ({ passageId, message }) => record(passageId, { kind: "failure", message }),
+        onFailure: ({ passageId, error }) => record(passageId, { kind: "failure", message: describeError(error, m) }),
       });
       setRun((prev) => prev && { ...prev, status: "done" });
     } catch (error) {
@@ -130,7 +132,7 @@ export function App() {
         prev &&
         (controller.signal.aborted
           ? { ...prev, status: "cancelled" }
-          : { ...prev, status: "failed", error: error instanceof Error ? error.message : String(error) }),
+          : { ...prev, status: "failed", error }),
       );
     }
   }
@@ -141,7 +143,7 @@ export function App() {
       const runFile = await createRunFile({
         claims: run.claims,
         status: run.status,
-        error: run.error,
+        error: run.error === undefined ? undefined : describeError(run.error, m),
         documents,
         files: sourceFiles,
         outcomes,
@@ -149,7 +151,7 @@ export function App() {
       downloadRunFile(runFile);
       setResultsFileError(undefined);
     } catch (error) {
-      setResultsFileError(error instanceof Error ? error.message : String(error));
+      setResultsFileError(error);
     }
   }
 
@@ -176,7 +178,7 @@ export function App() {
       setView("results");
       setResultsFileError(undefined);
     } catch (error) {
-      setResultsFileError(error instanceof Error ? error.message : String(error));
+      setResultsFileError(error);
     }
   }
 
@@ -191,7 +193,9 @@ export function App() {
   }
 
   const resultsReading: Reading = { view: claimView, possibleAbove: settings.possibleAbove };
-  const errors = [resultsFileError, shownView === "results" ? run?.error : undefined].filter(Boolean);
+  const errors = [resultsFileError, shownView === "results" ? run?.error : undefined]
+    .map((error) => (error === undefined ? "" : describeError(error, m)))
+    .filter(Boolean);
 
   return (
     <div className="app-shell">
@@ -237,34 +241,33 @@ export function App() {
         <div className="setup-scroll">
           <main className="setup">
             <div className="setup-intro">
-              <h1>Check a claim against your papers</h1>
-              <p className="muted">See which paragraphs support, refute, or are unrelated to it.</p>
+              <h1>{m.setup.title}</h1>
+              <p className="muted">{m.setup.subtitle}</p>
             </div>
 
             {settings.apiKey === undefined && (
               <p className="notice">
-                Add a TypeSafe API key before analyzing.{" "}
+                {m.setup.noApiKey}{" "}
                 <button type="button" className="link" onClick={() => setSettingsOpen(true)}>
-                  Open settings
+                  {m.setup.openSettings}
                 </button>
               </p>
             )}
 
             <section className="panel">
               <label htmlFor="claim" className="panel-title">
-                Claim
+                {m.setup.claim}
               </label>
               <textarea
                 id="claim"
                 rows={4}
                 aria-describedby="claim-hint"
-                placeholder={"e.g. Remote work increases employee productivity.\nRemote workers put in more hours."}
+                placeholder={m.setup.claimPlaceholder}
                 value={claim}
                 onChange={(e) => setClaim(e.target.value)}
               />
               <p id="claim-hint" className="hint">
-                One claim per line. Put each part of a compound claim on its own line to see which part a paragraph
-                bears on.
+                {m.setup.claimHint}
               </p>
             </section>
 
@@ -272,7 +275,7 @@ export function App() {
               documents={documents}
               failures={parseFailures}
               reading={reading}
-              readError={readError}
+              readError={readError === undefined ? undefined : describeError(readError, m)}
               disabled={running}
               onFiles={addFiles}
               onRemove={removeDocument}
@@ -286,7 +289,7 @@ export function App() {
                 disabled={running || claims.length === 0 || passageCount === 0 || reading}
                 onClick={startAnalysis}
               >
-                Analyze {passageCount} paragraph{passageCount === 1 ? "" : "s"}
+                {m.setup.analyze(passageCount)}
               </button>
             </div>
           </main>

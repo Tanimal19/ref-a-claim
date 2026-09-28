@@ -17,15 +17,6 @@ export interface Reading {
 export type Category = "supports" | "possibly-supports" | "unrelated" | "possibly-refutes" | "refutes" | "failed";
 export type Counts = Record<Category, number>;
 
-export const CATEGORY_LABELS: Record<Category, string> = {
-  supports: "Supports",
-  "possibly-supports": "Possibly supports",
-  unrelated: "Unrelated",
-  "possibly-refutes": "Possibly refutes",
-  refutes: "Refutes",
-  failed: "Failed",
-};
-
 /** Left-to-right order of the segments in a stance bar. */
 export const BAR_CATEGORIES: readonly Category[] = [
   "supports",

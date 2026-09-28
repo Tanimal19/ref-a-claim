@@ -56,7 +56,7 @@ export interface ParsedDocument {
 
 export interface ParseFailure {
   path: string;
-  message: string;
+  error: unknown;
 }
 
 export interface ParseResult {
@@ -129,5 +129,5 @@ export interface TokenUsage {
 
 export interface PassageFailure {
   passageId: string;
-  message: string;
+  error: unknown;
 }

@@ -1,9 +1,9 @@
 import { AuthenticationError, PermissionDeniedError } from "@typesafe-ai/sdk";
+import { LocalizedError } from "./i18n/errors.ts";
 import { stanceClassifierFor } from "./jev.ts";
 import type { AnalyzePassage, ParsedDocument, PassageFailure, Passage, Settings, StanceResult } from "./types.ts";
 
 const CONCURRENCY = 8;
-const NO_API_KEY = "No TypeSafe API key is configured. Add one in Settings.";
 
 export interface AnalyzeHandlers {
   onResult: (result: StanceResult) => void;
@@ -21,7 +21,7 @@ export async function analyze(
   signal: AbortSignal,
   handlers: AnalyzeHandlers,
 ): Promise<void> {
-  if (settings.apiKey === undefined) throw new Error(NO_API_KEY);
+  if (settings.apiKey === undefined) throw new LocalizedError((m) => m.errors.noApiKey);
   const classify = stanceClassifierFor(settings.apiKey, settings.model || undefined);
   const passages = documents.flatMap((doc) => doc.passages.map((_, i) => withContext(doc.passages, i, settings)));
 
@@ -40,7 +40,7 @@ export async function analyze(
         fatal.abort();
         return;
       }
-      handlers.onFailure({ passageId: passage.id, message: error instanceof Error ? error.message : String(error) });
+      handlers.onFailure({ passageId: passage.id, error });
     }
   });
   signal.throwIfAborted();

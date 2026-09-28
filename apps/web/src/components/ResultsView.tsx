@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useMessages } from "../i18n/index.tsx";
 import type { ParsedDocument, Passage } from "../types.ts";
 import { judge, paperStats, sumTallies, type Category, type Outcome, type PaperStats, type Reading } from "../results.ts";
 import { DocumentView } from "./DocumentView.tsx";
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function ResultsView({ claims, reading, documents, outcomes, files, documentId, onDocumentChange }: Props) {
+  const m = useMessages();
   const [paperOrder, setPaperOrder] = useState<PaperOrder>("document");
   const [activeId, setActiveId] = useState<string>();
 
@@ -111,10 +113,10 @@ export function ResultsView({ claims, reading, documents, outcomes, files, docum
             <h1 title={current.document.path}>{current.document.path}</h1>
             <span className="spacer" />
             <button type="button" disabled={!prevPaper} onClick={() => prevPaper && selectPaper(prevPaper)}>
-              ← Prev paper
+              {m.results.prevPaper}
             </button>
             <button type="button" disabled={!nextPaper} onClick={() => nextPaper && selectPaper(nextPaper)}>
-              Next paper →
+              {m.results.nextPaper}
             </button>
           </div>
           <DocumentView
@@ -128,10 +130,10 @@ export function ResultsView({ claims, reading, documents, outcomes, files, docum
           />
           <footer className="shortcuts">
             <span>
-              <kbd>↑</kbd> <kbd>↓</kbd> tinted paragraph
+              <kbd>↑</kbd> <kbd>↓</kbd> {m.results.tintedParagraphShortcut}
             </span>
             <span>
-              <kbd>←</kbd> <kbd>→</kbd> paper
+              <kbd>←</kbd> <kbd>→</kbd> {m.results.paperShortcut}
             </span>
           </footer>
         </section>

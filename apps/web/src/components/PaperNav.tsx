@@ -1,7 +1,7 @@
+import { useMessages } from "../i18n/index.tsx";
 import {
   BAR_CATEGORIES,
   BAR_SCALES,
-  CATEGORY_LABELS,
   type Category,
   type Counts,
   type PaperStats,
@@ -23,21 +23,22 @@ interface Props {
 }
 
 export function PaperNav({ papers, totals, order, onOrderChange, selectedId, onSelect, onJump }: Props) {
+  const m = useMessages();
   return (
-    <nav className="paper-nav" aria-label="Papers">
+    <nav className="paper-nav" aria-label={m.papers.title}>
       <div className="paper-nav-header">
-        <span className="eyebrow">Papers</span>
+        <span className="eyebrow">{m.papers.title}</span>
         <label className="quiet-select">
-          Sort
+          {m.papers.sort}
           <select value={order} onChange={(e) => onOrderChange(e.target.value as PaperOrder)}>
-            <option value="document">Document order</option>
-            <option value="supports">Most supporting</option>
-            <option value="refutes">Most refuting</option>
+            <option value="document">{m.papers.documentOrder}</option>
+            <option value="supports">{m.papers.mostSupporting}</option>
+            <option value="refutes">{m.papers.mostRefuting}</option>
           </select>
         </label>
       </div>
 
-      <PaperRow label="All papers" tally={totals} selected={false} />
+      <PaperRow label={m.papers.allPapers} tally={totals} selected={false} />
       <hr />
       <ol className="paper-rows">
         {papers.map((stats) => (
@@ -66,6 +67,7 @@ interface PaperRowProps {
 }
 
 function PaperRow({ label, tally, selected, onSelect, onJump }: PaperRowProps) {
+  const m = useMessages();
   const { counts, analyzed, total } = tally;
   const name = (
     <>
@@ -86,7 +88,7 @@ function PaperRow({ label, tally, selected, onSelect, onJump }: PaperRowProps) {
         {BAR_CATEGORIES.map((category) => {
           const count = counts[category];
           if (count === 0) return null;
-          const description = `${CATEGORY_LABELS[category]}: ${count} of ${total} paragraph${total === 1 ? "" : "s"}`;
+          const description = m.papers.segment(m.categories[category], count, total);
           const style = { flexGrow: count * BAR_SCALES[category] };
           return onJump ? (
             <button
@@ -94,8 +96,8 @@ function PaperRow({ label, tally, selected, onSelect, onJump }: PaperRowProps) {
               type="button"
               className={`segment ${category}`}
               style={style}
-              title={`${description}. Go to the next one`}
-              aria-label={`${label}, ${description}. Go to the next one`}
+              title={m.papers.goToNext(description)}
+              aria-label={`${label}, ${m.papers.goToNext(description)}`}
               onClick={() => onJump(category)}
             />
           ) : (
@@ -109,21 +111,22 @@ function PaperRow({ label, tally, selected, onSelect, onJump }: PaperRowProps) {
 }
 
 function SideCounts({ counts, lowConfidence }: { counts: Counts; lowConfidence: number }) {
+  const m = useMessages();
   return (
     <span className="side-counts">
-      <span className="supports" title={CATEGORY_LABELS.supports}>
+      <span className="supports" title={m.categories.supports}>
         {counts.supports}
       </span>
       <PossibleCount counts={counts} category="possibly-supports" />
       {" · "}
-      <span className="refutes" title={CATEGORY_LABELS.refutes}>
+      <span className="refutes" title={m.categories.refutes}>
         {counts.refutes}
       </span>
       <PossibleCount counts={counts} category="possibly-refutes" />
       {counts.failed > 0 && (
         <>
           {" · "}
-          <span className="failed" title={CATEGORY_LABELS.failed}>
+          <span className="failed" title={m.categories.failed}>
             {counts.failed}
           </span>
         </>
@@ -131,7 +134,7 @@ function SideCounts({ counts, lowConfidence }: { counts: Counts; lowConfidence: 
       {lowConfidence > 0 && (
         <span
           className="low-confidence-count"
-          title={`${lowConfidence} low-confidence paragraph${lowConfidence === 1 ? "" : "s"}`}
+          title={m.papers.lowConfidence(lowConfidence)}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
@@ -145,10 +148,11 @@ function SideCounts({ counts, lowConfidence }: { counts: Counts; lowConfidence: 
 }
 
 function PossibleCount({ counts, category }: { counts: Counts; category: "possibly-supports" | "possibly-refutes" }) {
+  const m = useMessages();
   const count = counts[category];
   if (count === 0) return null;
   return (
-    <span className={`possible-count ${category}`} title={CATEGORY_LABELS[category]}>
+    <span className={`possible-count ${category}`} title={m.categories[category]}>
       {" "}+{count}
     </span>
   );
