@@ -1,5 +1,13 @@
 import { LocalizedError } from "../i18n/errors.ts";
-import { SUPPORTED_EXTENSIONS, documentFormat, type ParseResult, type ParsedDocument, type Passage, type TextRange } from "../types.ts";
+import {
+  SUPPORTED_EXTENSIONS,
+  documentFormat,
+  type ParseResult,
+  type ParsedDocument,
+  type Passage,
+  type PickedFile,
+  type TextRange,
+} from "../types.ts";
 import { markdownBlocks } from "./markdown.ts";
 import { chunkTracedBySentence, rangesOf, splitTracedParagraphs, traced, type TracedText } from "./split.ts";
 
@@ -10,16 +18,14 @@ interface Block {
   textRanges: (offsets: readonly number[]) => TextRange[];
 }
 
-/** Each document's path is the file's path relative to the picked folder. */
-export async function parseDocuments(files: readonly File[], passageMaxChars: number): Promise<ParseResult> {
-  const paths = files.map((file) => file.webkitRelativePath || file.name);
-  const settled = await Promise.allSettled(files.map((file, i) => parseDocument(file, paths[i]!, passageMaxChars)));
+export async function parseDocuments(files: readonly PickedFile[], passageMaxChars: number): Promise<ParseResult> {
+  const settled = await Promise.allSettled(files.map(({ file, path }) => parseDocument(file, path, passageMaxChars)));
   const result: ParseResult = { documents: [], failures: [] };
   settled.forEach((outcome, i) => {
     if (outcome.status === "fulfilled") {
       result.documents.push(outcome.value);
     } else {
-      result.failures.push({ path: paths[i]!, error: outcome.reason });
+      result.failures.push({ path: files[i]!.path, error: outcome.reason });
     }
   });
   return result;

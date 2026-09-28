@@ -24,7 +24,7 @@ interface Props {
   onEdit: () => void;
   onBackToResults: () => void;
   onCancel: () => void;
-  onOpenResults: () => void;
+  onOpenResults?: () => void;
   onExportResults?: () => void;
   onOpenSettings: () => void;
   /** Shown at the bottom of the ⋯ menu. */
@@ -209,7 +209,7 @@ function LanguageToggle() {
 }
 
 interface MoreMenuProps {
-  onOpenResults: () => void;
+  onOpenResults?: () => void;
   onExportResults?: () => void;
   usage: ReactNode;
 }
@@ -270,7 +270,8 @@ function MoreMenu({ onOpenResults, onExportResults, usage }: MoreMenuProps) {
         <button
           type="button"
           className="menu-item"
-          onClick={() => run(onOpenResults)}
+          disabled={!onOpenResults}
+          onClick={() => onOpenResults && run(onOpenResults)}
         >
           {m.header.openResults}
         </button>

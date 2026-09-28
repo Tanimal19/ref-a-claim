@@ -32,13 +32,21 @@ export const zhTW: Messages = {
   documents: {
     title: "文件",
     reading: "讀取中…",
-    chooseFolder: "選擇資料夾",
+    chooseFiles: "選擇檔案",
+    pickFiles: "檔案…",
+    pickFolder: "資料夾…",
     clear: "清除",
     hint: (extensions) =>
-      `讀取資料夾及其子資料夾中的 ${extensions.join("、")} 檔案。`,
+      `選擇或拖放 ${extensions.join("、")} 檔案到這裡；選擇資料夾則會讀取其中及子資料夾內的這些檔案。`,
     paragraphs: (n) => `${n} 個段落`,
     remove: "移除",
     removeLabel: (path) => `移除 ${path}`,
+  },
+  demo: {
+    title: "試用範例",
+    description: "查看用範例論文分析出的結果。不需要 API 金鑰，也不會送出任何資料。",
+    open: "查看範例",
+    opening: "開啟中…",
   },
   settings: {
     title: "設定",
@@ -141,5 +149,6 @@ export const zhTW: Messages = {
     notResultsFile: (name) => `${name} 不是 ref-a-claim 的結果檔。`,
     malformedResultsFile: (name) => `${name} 格式有誤，無法開啟。`,
     originalFileUnavailable: (path) => `已無法取得 ${path} 的原始檔案。`,
+    demoUnavailable: (status) => `無法載入範例（HTTP ${status}）。`,
   },
 };

@@ -5,12 +5,15 @@ import { DocumentPicker } from "./components/DocumentPicker.tsx";
 import { ResultsView } from "./components/ResultsView.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { EMPTY_USAGE, UsagePanel, addUsage } from "./components/UsagePanel.tsx";
-import { describeError, useMessages } from "./i18n/index.tsx";
+import { LocalizedError, describeError, useMessages } from "./i18n/index.tsx";
 import { parseDocuments } from "./parse/index.ts";
 import type { ClaimView, Outcome, Reading } from "./results.ts";
 import { createRunFile, downloadRunFile, readRunFile } from "./runFile.ts";
 import { loadSettings, saveSettings } from "./settings.ts";
-import type { ParseFailure, ParsedDocument, Settings, TokenUsage } from "./types.ts";
+import type { ParseFailure, ParsedDocument, PickedFile, Settings, TokenUsage } from "./types.ts";
+
+/** A results file exported from an analysis of sample papers, opened by the setup page's demo section. */
+const DEMO_RESULTS_URL = `${import.meta.env.BASE_URL}demo/results.json`;
 
 interface Run {
   claims: string[];
@@ -38,6 +41,7 @@ export function App() {
   const [resultsFileError, setResultsFileError] = useState<unknown>();
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [openingDemo, setOpeningDemo] = useState(false);
   const abortRef = useRef<AbortController>(null);
   const resultsInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,13 +64,13 @@ export function App() {
     setResultsFileError(undefined);
   }
 
-  async function addFiles(files: File[], passageMaxChars = settings.passageMaxChars) {
+  async function addFiles(files: PickedFile[], passageMaxChars = settings.passageMaxChars) {
     setReading(true);
     setReadError(undefined);
     try {
       const parsed = await parseDocuments(files, passageMaxChars);
       const replaced = new Set(parsed.documents.map((doc) => doc.path));
-      const byPath = new Map(files.map((file) => [file.webkitRelativePath || file.name, file]));
+      const byPath = new Map(files.map(({ file, path }) => [path, file]));
       setDocuments((prev) => [...prev.filter((doc) => !replaced.has(doc.path)), ...parsed.documents]);
       setSourceFiles((prev) => {
         const next = new Map(prev);
@@ -158,7 +162,23 @@ export function App() {
   async function openResults(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (file) await openRunFile(file);
+  }
+
+  async function openDemo() {
+    setOpeningDemo(true);
+    try {
+      const response = await fetch(DEMO_RESULTS_URL);
+      if (!response.ok) throw new LocalizedError((m) => m.errors.demoUnavailable(response.status));
+      await openRunFile(new File([await response.blob()], "demo.json", { type: "application/json" }));
+    } catch (error) {
+      setResultsFileError(error);
+    } finally {
+      setOpeningDemo(false);
+    }
+  }
+
+  async function openRunFile(file: File) {
     try {
       const runFile = await readRunFile(file);
       setClaim(runFile.claims.join("\n"));
@@ -187,7 +207,10 @@ export function App() {
     saveSettings(next);
     setSettings(next);
     setSettingsOpen(false);
-    const files = documents.flatMap((doc) => sourceFiles.get(doc.path) ?? []);
+    const files = documents.flatMap((doc) => {
+      const file = sourceFiles.get(doc.path);
+      return file ? [{ file, path: doc.path }] : [];
+    });
     // Re-reading replaces the passages a running analysis is still reporting on, so it waits until the run ends.
     if (passageMaxCharsChanged && files.length > 0 && !running) void addFiles(files, next.passageMaxChars);
   }
@@ -214,7 +237,7 @@ export function App() {
         onEdit={() => setView("setup")}
         onBackToResults={() => setView("results")}
         onCancel={() => abortRef.current?.abort()}
-        onOpenResults={() => resultsInputRef.current?.click()}
+        onOpenResults={running ? undefined : () => resultsInputRef.current?.click()}
         onExportResults={run && !running ? () => void exportResults() : undefined}
         onOpenSettings={() => setSettingsOpen(true)}
         usage={<UsagePanel run={run && runUsage} session={sessionUsage} />}
@@ -244,6 +267,16 @@ export function App() {
               <h1>{m.setup.title}</h1>
               <p className="muted">{m.setup.subtitle}</p>
             </div>
+
+            <section className="panel demo">
+              <div>
+                <span className="panel-title">{m.demo.title}</span>
+                <p className="hint">{m.demo.description}</p>
+              </div>
+              <button type="button" disabled={running || openingDemo} onClick={() => void openDemo()}>
+                {openingDemo ? m.demo.opening : m.demo.open}
+              </button>
+            </section>
 
             {settings.apiKey === undefined && (
               <p className="notice">

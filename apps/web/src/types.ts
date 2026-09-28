@@ -47,9 +47,15 @@ export interface TextRange {
   end: number;
 }
 
+/** A file the user picked or dropped, with the path it goes by: see `ParsedDocument.path`. */
+export interface PickedFile {
+  file: File;
+  path: string;
+}
+
 export interface ParsedDocument {
   id: string;
-  /** Path relative to the folder the user picked. */
+  /** Path relative to the parent of the folder the user picked or dropped; just the file name for a lone file. */
   path: string;
   passages: Passage[];
 }

@@ -220,6 +220,12 @@ kbd {
   padding: 16px;
 }
 
+.panel.drop-target {
+  border-style: dashed;
+  border-color: var(--ink-3);
+  background: var(--ground);
+}
+
 .panel-title {
   display: block;
   font-weight: 600;
@@ -410,6 +416,11 @@ a.icon-button {
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.12);
 }
 
+.menu.compact {
+  width: auto;
+  min-width: 160px;
+}
+
 .menu hr {
   margin: 6px 0;
 }
@@ -500,6 +511,21 @@ a.icon-button {
 
 .setup-intro p {
   margin: 4px 0 0;
+}
+
+.demo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.demo .panel-title {
+  margin-bottom: 0;
+}
+
+.demo button {
+  flex-shrink: 0;
 }
 
 .setup-actions {

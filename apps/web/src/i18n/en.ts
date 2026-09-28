@@ -38,13 +38,22 @@ export const en = {
   documents: {
     title: "Documents",
     reading: "Reading…",
-    chooseFolder: "Choose folder",
+    chooseFiles: "Choose file(s)",
+    pickFiles: "Files…",
+    pickFolder: "Folder…",
     clear: "Clear",
     hint: (extensions: readonly string[]) =>
-      `Reads ${extensions.join(", ")} files in the folder and its subfolders.`,
+      `Choose or drop ${extensions.join(", ")} files here, or a folder to read those in it and its subfolders.`,
     paragraphs: (n: number) => plural(n, "paragraph"),
     remove: "Remove",
     removeLabel: (path: string) => `Remove ${path}`,
+  },
+  demo: {
+    title: "Try a demo",
+    description:
+      "See the results of an analysis of sample papers. No API key needed, and nothing is sent.",
+    open: "View demo",
+    opening: "Opening…",
   },
   settings: {
     title: "Settings",
@@ -158,6 +167,8 @@ export const en = {
       `${name} is malformed and cannot be opened.`,
     originalFileUnavailable: (path: string) =>
       `The original file of ${path} is no longer available.`,
+    demoUnavailable: (status: number) =>
+      `The demo could not be loaded (HTTP ${status}).`,
   },
 };
 

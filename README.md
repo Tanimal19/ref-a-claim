@@ -2,7 +2,7 @@
 
 *It finds the references. You're the ref.*
 
-Enter a claim, pick a folder of `.pdf`, `.md` or `.txt` files, and read each paper as it
+Enter a claim, pick or drop `.pdf`, `.md` or `.txt` files (or folders of them), and read each paper as it
 is, with the paragraphs that support or refute the claim tinted in place. A compound claim can be entered as several
 claims, one per line, to see which part each paragraph bears on. Each paragraph is classified by TypeSafe's
 [Jev](https://docs.typesafe.ai/introduction) model.
