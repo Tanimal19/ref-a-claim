@@ -6,7 +6,7 @@
   --ink: #1b1b18;
   --ink-2: #55544e;
   --ink-3: #6f6d66;
-  --supports: #2e62b8;
+  --supports: #1f7a4d;
   --refutes: #c4541a;
   --unrelated: #cfccc2;
   --failed: #a36a00;
@@ -30,7 +30,7 @@
     --ink: #ecebe7;
     --ink-2: #b9b8b1;
     --ink-3: #97958e;
-    --supports: #7aa2e8;
+    --supports: #5cc98a;
     --refutes: #f08a4b;
     --unrelated: #4a4944;
     --failed: #e0a040;
@@ -1138,6 +1138,10 @@ button.segment:hover {
   color: var(--ink);
 }
 
+.scores .possible {
+  color: var(--stance);
+}
+
 .passage-card .model {
   margin: 0;
   align-self: flex-end;
@@ -1315,12 +1319,6 @@ button.segment:hover {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-left: 8px;
-  border-left: 2px solid transparent;
-}
-
-.claim-scores li.current {
-  border-left-color: var(--ink-3);
 }
 
 .claim-scores-claim {
@@ -1337,18 +1335,3 @@ button.segment:hover {
   text-overflow: ellipsis;
 }
 
-.claim-scores-result {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 12px;
-}
-
-.claim-scores-result .stance-label {
-  color: var(--stance);
-}
-
-.claim-scores li.unrelated .stance-label {
-  color: var(--ink-2);
-}

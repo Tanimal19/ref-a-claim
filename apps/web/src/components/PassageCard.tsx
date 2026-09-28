@@ -1,5 +1,5 @@
 import { STANCES, type ClaimStance, type Passage } from "../types.ts";
-import { CATEGORY_LABELS, judge, type Judgement, type Outcome, type Reading } from "../results.ts";
+import { CATEGORY_LABELS, judge, type Category, type Judgement, type Outcome, type Reading } from "../results.ts";
 
 interface Props {
   passage: Passage;
@@ -26,26 +26,23 @@ export function PassageCard({ passage, outcome, claims, reading }: Props) {
       </div>
       {outcome.kind === "result" ? (
         <>
-          {claims.length === 1 ? (
-            <Scores stance={outcome.result.stances[0]} />
-          ) : (
+          {reading.view === "all" && claims.length > 1 ? (
             <ol className="claim-scores">
-              {outcome.result.stances.map((stance, i) => {
-                const claimCategory = judge(outcome, { ...reading, view: i }).category;
-                return (
-                  <li key={i} className={`${claimCategory}${reading.view === i ? " current" : ""}`}>
-                    <p className="claim-scores-claim" title={claims[i]}>
-                      <span className="claim-number">{i + 1}</span>
-                      <span className="claim-text">{claims[i]}</span>
-                    </p>
-                    <p className="claim-scores-result">
-                      <span className="stance-label">{CATEGORY_LABELS[claimCategory]}</span>
-                      <Scores stance={stance} />
-                    </p>
-                  </li>
-                );
-              })}
+              {outcome.result.stances.map((stance, i) => (
+                <li key={i}>
+                  <p className="claim-scores-claim" title={claims[i]}>
+                    <span className="claim-number">{i + 1}</span>
+                    <span className="claim-text">{claims[i]}</span>
+                  </p>
+                  <Scores stance={stance} category={judge(outcome, { ...reading, view: i }).category} />
+                </li>
+              ))}
             </ol>
+          ) : (
+            <Scores
+              stance={outcome.result.stances[reading.view === "all" ? 0 : reading.view]}
+              category={category}
+            />
           )}
           <p className="model">{outcome.result.model}</p>
         </>
@@ -56,16 +53,22 @@ export function PassageCard({ passage, outcome, claims, reading }: Props) {
   );
 }
 
-function Scores({ stance }: { stance: ClaimStance | undefined }) {
+/**
+ * One claim's probabilities: the highest in bold, tinted when it is a supporting or refuting stance, and the leaning
+ * stance of a possibly related passage tinted but not bold.
+ */
+function Scores({ stance, category }: { stance: ClaimStance | undefined; category: Category }) {
   if (!stance) return null;
+  const possible =
+    category === "possibly-supports" ? "supports" : category === "possibly-refutes" ? "refutes" : undefined;
   return (
-    <span className="scores">
+    <p className="scores">
       {STANCES.map((s) => (
-        <span key={s} className={s === stance.stance ? `chosen ${s}` : undefined}>
+        <span key={s} className={s === stance.stance ? `chosen ${s}` : s === possible ? `possible ${s}` : undefined}>
           {CATEGORY_LABELS[s]} {stance.probabilities[s].toFixed(2)}
         </span>
       ))}
-    </span>
+    </p>
   );
 }
 
