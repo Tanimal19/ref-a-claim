@@ -48,6 +48,11 @@ export const zhTW: Messages = {
     open: "查看範例",
     opening: "開啟中…",
   },
+  footer: {
+    disclaimer:
+      "結果很大程度取決於 Jev 模型，以及主張的清晰度與複雜度。所有結果都應由人工再次確認：本工具首先是 Jev 的展示工具，" +
+      "定位為幫助你更容易找到相關段落的導覽工具。",
+  },
   settings: {
     title: "設定",
     api: "TypeSafe API",

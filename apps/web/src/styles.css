@@ -486,6 +486,16 @@ a.icon-button {
   background: var(--surface);
 }
 
+.app-footer {
+  flex-shrink: 0;
+  padding: 6px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 /* ---------- Setup view ---------- */
 
 .setup-scroll {

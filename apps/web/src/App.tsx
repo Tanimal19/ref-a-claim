@@ -329,6 +329,8 @@ export function App() {
         </div>
       )}
 
+      <footer className="app-footer">{m.footer.disclaimer}</footer>
+
       <SettingsDialog
         open={settingsOpen}
         settings={settings}

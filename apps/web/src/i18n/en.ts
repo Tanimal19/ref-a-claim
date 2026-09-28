@@ -55,6 +55,12 @@ export const en = {
     open: "View demo",
     opening: "Opening…",
   },
+  footer: {
+    disclaimer:
+      "Results depend largely on the Jev model and on the clarity and complexity of the claim. Every result should " +
+      "be re-checked by a human: this tool is first a demo of Jev, meant as a navigator that helps you find related " +
+      "paragraphs more easily.",
+  },
   settings: {
     title: "Settings",
     api: "TypeSafe API",

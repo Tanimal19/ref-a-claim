@@ -12,6 +12,11 @@ claims, one per line, to see which part each paragraph bears on. Each paragraph 
 Everything runs in the browser; nothing is sent to a server.
 See demo at [https://ref-a-claim.vercel.app/](https://ref-a-claim.vercel.app/).
 
+> [!WARNING]
+> Results depend largely on the Jev model and on the clarity and complexity of the claim. Every result should be
+> re-checked by a human: this tool is first a demo of Jev, meant as a navigator that helps you find related
+> paragraphs more easily.
+
 ## Settings
 
 The gear button opens Settings: the TypeSafe API key, the model, the maximum paragraph length, how much surrounding context is sent with each paragraph, and the probability from which a paragraph judged unrelated is shown as possibly supporting or refuting a claim. The key is kept in the tab's `sessionStorage`, so it is cleared when the tab closes; the other settings are kept in `localStorage`.
